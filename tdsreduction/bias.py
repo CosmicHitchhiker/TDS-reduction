@@ -35,7 +35,7 @@ def main(args=None):
     parser.add_argument('filenames', nargs='+',
                         help="fits files with bias frames")
     parser.add_argument('-d','--dir', help="directory with input files")
-    parser.add_argument('-o','--out', default='superbias.fits',
+    parser.add_argument('-o','--out', default='../data/superbias.fits',
                         help='output file')
     pargs = parser.parse_args(args[1:])
 
