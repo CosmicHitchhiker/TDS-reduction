@@ -2,6 +2,8 @@
 
 import numpy as np
 from bias import get_bias
+from scipy.interpolate import interp1d
+
 
 def get_dark_interp(darks):
     # На входе - словарь экспозиция-дарккадр
@@ -9,6 +11,7 @@ def get_dark_interp(darks):
     dark_img = np.array(list(darks.values()))
     dark = interp1d(dark_t, dark_img, axis=0)
     return(dark)
+
 
 def get_dark_k(darks, deg=1):
     t = np.array(list(darks.keys()))
@@ -19,38 +22,40 @@ def get_dark_k(darks, deg=1):
     darks = darks.T
     print("darks shape", darks.shape)
     # xpix, ypix, deg+1
-    polyf = lambda x: np.polyfit(t, x, deg)
+
+    def polyf(x):
+        np.polyfit(t, x, deg)
+
     k = np.apply_along_axis(polyf, 2, darks)
     # dark(t) = k[0]*t^deg + k[1]*t^(deg-1) + ... + k[deg]
     k = k.T
     return k
+
 
 def get_dark_file(data, headers, superbias=0):
     times = [x["EXPOSURE"] for x in headers]
 
     dark_times = sorted(set(times))
     times = np.array(times)
-    darks = dict()
     HDUs = fits.HDUList()
     for t in dark_times:
-        darks_t = data[times==t]
+        darks_t = data[times == t]
         dark, _ = get_bias(darks_t)
         dark = dark - superbias
         dark[dark < 0] = 0
 
-        hdr = [headers[i] for i in range(len(headers)) if times[i]==t][0]
+        hdr = [headers[i] for i in range(len(headers)) if times[i] == t][0]
         HDUs.append(fits.ImageHDU(dark, header=hdr))
 
     return(HDUs)
-
 
 
 def main(args=None):
     parser = argparse.ArgumentParser()
     parser.add_argument('filenames', nargs='+',
                         help="fits files with dark frames")
-    parser.add_argument('-d','--dir', help="directory with input files")
-    parser.add_argument('-o','--out', default='../data/dark.fits',
+    parser.add_argument('-d', '--dir', help="directory with input files")
+    parser.add_argument('-o', '--out', default='../data/dark.fits',
                         help='output file')
     parser.add_argument('-B', '--BIAS', help="bias frame (fits) to substract")
     pargs = parser.parse_args(args[1:])
@@ -69,8 +74,7 @@ def main(args=None):
     hdul = get_dark_file(dark_files, headers, superbias)
     hdul.writeto(pargs.out, overwrite=True)
 
-
-    return 0
+    return(0)
 
 
 if __name__ == '__main__':

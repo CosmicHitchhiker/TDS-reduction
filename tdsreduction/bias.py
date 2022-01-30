@@ -3,6 +3,7 @@
 import numpy as np
 import astropy.stats as astats
 
+
 def get_bias(bias, gain=1):
     '''Calculate superbias and readnoise.
 
@@ -30,12 +31,13 @@ def get_bias(bias, gain=1):
     superbias = superbias.filled(superbias.mean())
     return (superbias, read_noise)
 
+
 def main(args=None):
     parser = argparse.ArgumentParser()
     parser.add_argument('filenames', nargs='+',
                         help="fits files with bias frames")
-    parser.add_argument('-d','--dir', help="directory with input files")
-    parser.add_argument('-o','--out', default='../data/superbias.fits',
+    parser.add_argument('-d', '--dir', help="directory with input files")
+    parser.add_argument('-o', '--out', default='../data/superbias.fits',
                         help='output file')
     pargs = parser.parse_args(args[1:])
 
