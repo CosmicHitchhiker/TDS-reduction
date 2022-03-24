@@ -111,14 +111,13 @@ def main(args=None):
     hdr = fits.getheader(pargs.spectrum)
 
     radec_slit = [Angle(hdr['RA'] + ' hours'), Angle(hdr['DEC'] + ' degrees')]
-    radec_slit[1] += pargs.ra_corr*u.arcsec
-    radec_slit[0] += pargs.dec_corr*u.arcsec
+    print(pargs.ra_corr)
+    radec_slit[0] += pargs.ra_corr*u.arcsec
+    radec_slit[1] += pargs.dec_corr*u.arcsec
 
     ax = plt.subplot(projection=wcs)
     ax.set_title(hdr['OBJECT'])
     ax.imshow(image.data, cmap='bone')
-
-    # plt.grid(color='white', ls='solid')
 
     PA = hdr['POSANG']
     s = mySlit(radec_slit, 1.0*u.arcsec, 3.0*u.arcmin, theta=PA*u.deg,
