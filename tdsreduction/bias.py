@@ -50,7 +50,7 @@ def main(args=None):
     hdr = headers[0]
     hdr['READNOIS'] = readnoise
     fits.PrimaryHDU(superbias.astype('float32'), header=hdr).writeto(pargs.out)
-    return 0
+    return(0)
 
 
 if __name__ == '__main__':

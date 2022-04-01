@@ -5,6 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setuptools.setup(
     name="tdsreduction",
+    # PEP440
     version="0.0.1.dev1",
     author="Vsevolod Lander",
     author_email="sevalander@gmail.com",

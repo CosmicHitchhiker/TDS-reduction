@@ -129,3 +129,7 @@ dmypy.json
 .pyre/
 
 bin/template.py
+
+draft.py
+
+test_venv/
