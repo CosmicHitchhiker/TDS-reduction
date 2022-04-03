@@ -32,6 +32,24 @@ def get_bias(bias, gain=1):
     return (superbias, read_noise)
 
 
+def get_bias_file(bias_array, header=None):
+    superbias, readnoise = get_bias(bias_array)
+    bias_file = fits.PrimaryHDU(superbias.astype('float32'), header=header)
+    bias_file.header['READNOIS'] = readnoise
+    return(bias_file)
+
+
+def bias_from_file(bias_file):
+    bias = bias_file.data
+    readnoise = bias_file.header['READNOIS']
+    return(bias, readnoise)
+
+
+def process_bias(data, bias):
+    data = data - bias
+    return(data)
+
+
 def main(args=None):
     parser = argparse.ArgumentParser()
     parser.add_argument('filenames', nargs='+',
@@ -46,10 +64,8 @@ def main(args=None):
     if pargs.dir:
         bias_names = [pargs.dir + x for x in bias_names]
     bias_files, headers = open_fits_array_data(bias_names, header=True)
-    superbias, readnoise = get_bias(bias_files)
-    hdr = headers[0]
-    hdr['READNOIS'] = readnoise
-    fits.PrimaryHDU(superbias.astype('float32'), header=hdr).writeto(pargs.out)
+    superbias_file = get_bias_file(bias_files, headers[0])
+    superbias_file.writeto(pargs.out, overwrite=True)
     return(0)
 
 
