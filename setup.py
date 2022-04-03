@@ -14,7 +14,7 @@ setuptools.setup(
     long_description_content_type="text/markdown",
     url="https://github.com/CosmicHitchhiker/tdsreduction",
     project_urls={
-        "https://github.com/CosmicHitchhiker/tdsreduction/issues",
+      "Bug Tracker": "https://github.com/CosmicHitchhiker/tdsreduction/issues",
     },
     classifiers=[
         "Development Status :: 1 - Planning",
@@ -29,6 +29,7 @@ setuptools.setup(
     python_requires=">=3.6",
     install_requires=[
        'numpy>=1.13',
-       'scipy>=1.0'
+       'scipy>=1.0',
+       'astropy'
     ]
 )
