@@ -50,6 +50,10 @@ def get_dark_file(data, headers, superbias=0):
     return(HDUs)
 
 
+def dark_from_file():
+    return(0)
+
+
 def main(args=None):
     parser = argparse.ArgumentParser()
     parser.add_argument('filenames', nargs='+',
