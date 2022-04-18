@@ -33,6 +33,26 @@ def get_bias(bias, gain=1):
 
 
 def get_bias_file(bias_array, header=None):
+    '''Prepare superbias file with readnoise in its header.
+
+    Apply sigma-clipping to all given bias images.
+    Calculate readnoise (median robust standard deviation multiplied by gain).
+    For TDS gain is assumed to be 1.
+    Get superbias by averaging all bias images.
+
+    Parameters
+    ----------
+    bias : 3D ndarray
+        Array of bias images.
+    header : astropy header, optional
+        This header will be used as a header for the resulting file,
+        but new key 'READNOIS' will be added.
+
+    Returns
+    -------
+    bias_file : fits.PrimaryHDU
+        Resulting file with the superbias.
+    '''
     superbias, readnoise = get_bias(bias_array)
     bias_file = fits.PrimaryHDU(superbias.astype('float32'), header=header)
     bias_file.header['READNOIS'] = readnoise
@@ -40,12 +60,42 @@ def get_bias_file(bias_array, header=None):
 
 
 def bias_from_file(bias_file):
+    '''Get supebias frame and readnoise form file.
+
+    Parameters
+    ----------
+    bias_file : fits.PrimaryHDU
+        File with superbias frame and 'READNOISE' key in the header.
+
+    Returns
+    -------
+    bias : 2D ndarray
+        Superbias image.
+    readnoise : float
+        Read noise in the current observations
+    '''
     bias = bias_file.data
     readnoise = bias_file.header['READNOIS']
     return(bias, readnoise)
 
 
 def process_bias(data, bias):
+    '''Apply bias calibration to the given data.
+
+    Substract bias frame from all of the given data frames.
+
+    Parameters
+    ----------
+    data : 3D ndarray
+        Array of data images
+    bias : 2D ndarray
+        Superbias frame
+
+    Returns
+    -------
+    data : 3D ndarray
+        Data with bias substracted
+    '''
     data = data - bias
     return(data)
 
