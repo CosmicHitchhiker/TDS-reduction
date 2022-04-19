@@ -1,7 +1,7 @@
 #! /usr/bin/python3
 
 import numpy as np
-from bias import get_bias
+import bias
 from scipy.interpolate import interp1d
 
 
@@ -40,7 +40,7 @@ def get_dark_file(data, headers, superbias=0):
     HDUs = fits.HDUList()
     for t in dark_times:
         darks_t = data[times == t]
-        dark, _ = get_bias(darks_t)
+        dark, _ = bias.get_bias(darks_t)
         dark = dark - superbias
         dark[dark < 0] = 0
 
@@ -50,7 +50,11 @@ def get_dark_file(data, headers, superbias=0):
     return(HDUs)
 
 
-def dark_from_file():
+def dark_from_file(dark_file):
+    return(0)
+
+
+def process_dark():
     return(0)
 
 
