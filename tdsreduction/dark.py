@@ -75,9 +75,9 @@ def main(args=None):
     pargs = parser.parse_args(args[1:])
 
     if pargs.BIAS:
-        superbias = fits.getdata(pargs.BIAS)
+        bias_obj = bias.bias_from_file(pargs.BIAS)[0]
     else:
-        superbias = 0
+        bias_obj = 0
 
     dark_names = pargs.filenames
     if pargs.dir:
@@ -85,7 +85,7 @@ def main(args=None):
     dark_files, headers = open_fits_array_data(dark_names, header=True)
     # print(headers[0])
 
-    hdul = get_dark_file(dark_files, headers, superbias)
+    hdul = get_dark_file(dark_files, headers, bias_obj)
     hdul.writeto(pargs.out, overwrite=True)
 
     return(0)
