@@ -2,6 +2,7 @@
 
 import numpy as np
 import astropy.stats as astats
+from astropy.io import fits
 
 
 def get_bias(bias, gain=1):
@@ -64,7 +65,7 @@ def bias_from_file(bias_file):
 
     Parameters
     ----------
-    bias_file : fits.PrimaryHDU
+    bias_file : str or fits.PrimaryHDU
         File with superbias frame and 'READNOISE' key in the header.
 
     Returns
@@ -74,6 +75,8 @@ def bias_from_file(bias_file):
     readnoise : float
         Read noise in the current observations
     '''
+    if (type(bias_file) == str):
+        bias_file = fits.open(bias_file)[0]
     bias = bias_file.data
     readnoise = bias_file.header['READNOIS']
     return(bias, readnoise)
@@ -122,6 +125,5 @@ def main(args=None):
 if __name__ == '__main__':
     import sys
     from utils import open_fits_array_data
-    from astropy.io import fits
     import argparse
     sys.exit(main(sys.argv))

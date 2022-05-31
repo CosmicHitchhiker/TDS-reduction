@@ -3,6 +3,7 @@
 import numpy as np
 import bias
 from scipy.interpolate import interp1d
+from astropy.io import fits
 
 
 def get_dark_interp(darks):
@@ -51,6 +52,8 @@ def get_dark_file(data, headers, superbias=0):
 
 
 def dark_from_file(dark_file):
+    if (type(dark_file) == str):
+        dark_file = fits.open(dark_file)
     darks = dict([(x.header["EXPOSURE"], x.data) for x in dark_file])
     dark = get_dark_interp(darks)
     return(dark)
@@ -91,6 +94,5 @@ def main(args=None):
 if __name__ == '__main__':
     import sys
     from utils import open_fits_array_data
-    from astropy.io import fits
     import argparse
     sys.exit(main(sys.argv))
