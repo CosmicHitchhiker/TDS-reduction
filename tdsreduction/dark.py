@@ -51,11 +51,14 @@ def get_dark_file(data, headers, superbias=0):
 
 
 def dark_from_file(dark_file):
-    return(0)
+    darks = dict([(x.header["EXPOSURE"], x.data) for x in dark_file])
+    dark = get_dark_interp(darks)
+    return(dark)
 
 
-def process_dark():
-    return(0)
+def process_dark(data, dark, exposures):
+    data_res = [frame - dark(t) for frame, t in zip(data, exposures)]
+    return(data_res)
 
 
 def main(args=None):
