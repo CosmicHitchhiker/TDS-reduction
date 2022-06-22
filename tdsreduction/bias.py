@@ -82,7 +82,7 @@ def bias_from_file(bias_file):
     return(bias, readnoise)
 
 
-def process_bias(data, bias):
+def process_bias(data, bias_obj=None):
     '''Apply bias calibration to the given data.
 
     Substract bias frame from all of the given data frames.
@@ -99,7 +99,9 @@ def process_bias(data, bias):
     data : 3D ndarray
         Data with bias substracted
     '''
-    data = data - bias
+    if bias_obj is None:
+        return(data)
+    data = data - bias_obj
     return(data)
 
 

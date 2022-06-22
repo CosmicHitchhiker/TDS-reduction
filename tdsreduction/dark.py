@@ -33,7 +33,7 @@ def get_dark_k(darks, deg=1):
     return k
 
 
-def get_dark_file(data, headers, superbias=0):
+def get_dark_file(data, headers, bias_obj=None):
     times = [x["EXPOSURE"] for x in headers]
 
     dark_times = sorted(set(times))
@@ -41,8 +41,9 @@ def get_dark_file(data, headers, superbias=0):
     HDUs = fits.HDUList()
     for t in dark_times:
         darks_t = data[times == t]
+        # bias.get_bias is sigma-clipped mean
         dark, _ = bias.get_bias(darks_t)
-        dark = dark - superbias
+        dark = bias.process_bias(dark, bias_obj)
         dark[dark < 0] = 0
 
         hdr = [headers[i] for i in range(len(headers)) if times[i] == t][0]
@@ -59,7 +60,9 @@ def dark_from_file(dark_file):
     return(dark)
 
 
-def process_dark(data, dark, exposures):
+def process_dark(data, dark=None, exposures=None):
+    if dark is None:
+        return(data)
     data_res = [frame - dark(t) for frame, t in zip(data, exposures)]
     return(data_res)
 
@@ -77,7 +80,7 @@ def main(args=None):
     if pargs.BIAS:
         bias_obj = bias.bias_from_file(pargs.BIAS)[0]
     else:
-        bias_obj = 0
+        bias_obj = None
 
     dark_names = pargs.filenames
     if pargs.dir:
