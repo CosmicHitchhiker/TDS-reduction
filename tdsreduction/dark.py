@@ -14,25 +14,6 @@ def get_dark_interp(darks):
     return(dark)
 
 
-def get_dark_k(darks, deg=1):
-    t = np.array(list(darks.keys()))
-    print("times", t)
-    # N, ypix, xpix -> xpix, ypix, N
-    # Потому что polyfit не берёт 3D-массивы
-    darks = np.array(list(darks.values()))
-    darks = darks.T
-    print("darks shape", darks.shape)
-    # xpix, ypix, deg+1
-
-    def polyf(x):
-        np.polyfit(t, x, deg)
-
-    k = np.apply_along_axis(polyf, 2, darks)
-    # dark(t) = k[0]*t^deg + k[1]*t^(deg-1) + ... + k[deg]
-    k = k.T
-    return k
-
-
 def get_dark_file(data, headers, bias_obj=None):
     times = [x["EXPOSURE"] for x in headers]
 
