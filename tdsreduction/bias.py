@@ -1,4 +1,5 @@
 #! /usr/bin/python3
+"""This module works with bias files"""
 
 import numpy as np
 import astropy.stats as astats
@@ -6,7 +7,7 @@ from astropy.io import fits
 
 
 def get_bias(bias, gain=1):
-    '''Calculate superbias and readnoise.
+    """Calculate superbias and readnoise.
 
     Apply sigma-clipping to all given bias images.
     Calculate readnoise (median robust standard deviation multiplied by gain)
@@ -25,7 +26,7 @@ def get_bias(bias, gain=1):
         Superbias image.
     read_noise : float
         Read noise in the current observations
-    '''
+    """
     bias_clean = astats.sigma_clip(bias, sigma=5)
     read_noise = np.median(astats.mad_std(bias, axis=(1, 2))) * gain
     superbias = np.average(bias_clean, axis=0)
@@ -34,7 +35,7 @@ def get_bias(bias, gain=1):
 
 
 def get_bias_file(bias_array, header=None):
-    '''Prepare superbias file with readnoise in its header.
+    """Prepare superbias file with readnoise in its header.
 
     Apply sigma-clipping to all given bias images.
     Calculate readnoise (median robust standard deviation multiplied by gain).
@@ -53,15 +54,15 @@ def get_bias_file(bias_array, header=None):
     -------
     bias_file : fits.PrimaryHDU
         Resulting file with the superbias.
-    '''
+    """
     superbias, readnoise = get_bias(bias_array)
     bias_file = fits.PrimaryHDU(superbias.astype('float32'), header=header)
     bias_file.header['READNOIS'] = readnoise
-    return(bias_file)
+    return bias_file
 
 
 def bias_from_file(bias_file):
-    '''Get supebias frame and readnoise form file.
+    """Get supebias frame and readnoise form file.
 
     Parameters
     ----------
@@ -70,42 +71,49 @@ def bias_from_file(bias_file):
 
     Returns
     -------
-    bias : 2D ndarray
-        Superbias image.
-    readnoise : float
-        Read noise in the current observations
-    '''
-    if (type(bias_file) == str):
+    bias_obj : dict
+        'data' - np.array, superbias frame
+        'errors' - np.array, superbias errors squared
+        'readnoise' - float, read noise
+    """
+    if isinstance(bias_file, str):
         bias_file = fits.open(bias_file)[0]
     bias = bias_file.data
     readnoise = bias_file.header['READNOIS']
-    return(bias, readnoise)
+    errors = (np.ones(np.shape(bias))*readnoise)**2
+    return({'data': bias, 'errors': errors, 'readnoise': readnoise})
 
 
 def process_bias(data, bias_obj=None):
-    '''Apply bias calibration to the given data.
+    """Apply bias calibration to the given data.
 
     Substract bias frame from all of the given data frames.
 
     Parameters
     ----------
-    data : 3D ndarray
-        Array of data images
-    bias : 2D ndarray
-        Superbias frame
+    data : dict
+        'data' - 3D ndarray, array of data images
+        'errors' - 3D ndarray, array of corresponding errors
+    bias_obj : dict
+        'data' - np.array, superbias frame
+        'errors' - np.array, superbias errors squared
+        'readnoise' - float, read noise
 
     Returns
     -------
-    data : 3D ndarray
-        Data with bias substracted
-    '''
+    data : dict
+        Has the same structure as input data
+    """
     if bias_obj is None:
-        return(data)
-    data = data - bias_obj
-    return(data)
+        return data
+
+    data_processed = data['data'] - bias_obj['data']
+    errors_processed = data['errors'] + bias_obj['errors']
+    return({'data': data_processed, 'errors': errors_processed})
 
 
 def main(args=None):
+    """This method runs if the file is running as a program"""
     parser = argparse.ArgumentParser()
     parser.add_argument('filenames', nargs='+',
                         help="fits files with bias frames")
@@ -121,7 +129,7 @@ def main(args=None):
     bias_files, headers = open_fits_array_data(bias_names, header=True)
     superbias_file = get_bias_file(bias_files, headers[0])
     superbias_file.writeto(pargs.out, overwrite=True)
-    return(0)
+    return 0
 
 
 if __name__ == '__main__':
