@@ -1,4 +1,5 @@
 #! /usr/bin/python3
+"""This module works with 'dark' calibration files"""
 
 import numpy as np
 import bias
@@ -11,7 +12,7 @@ def get_dark_interp(darks):
     dark_t = np.array(list(darks.keys()))
     dark_img = np.array(list(darks.values()))
     dark = interp1d(dark_t, dark_img, axis=0)
-    return(dark)
+    return dark
 
 
 def get_dark_file(data, headers, bias_obj=None):
@@ -19,36 +20,40 @@ def get_dark_file(data, headers, bias_obj=None):
 
     dark_times = sorted(set(times))
     times = np.array(times)
-    HDUs = fits.HDUList()
-    for t in dark_times:
-        darks_t = data[times == t]
+    dark_frames = fits.HDUList()
+    for dark_exp in dark_times:
+        darks_t = data[times == dark_exp]
         # bias.get_bias is sigma-clipped mean
         dark, _ = bias.get_bias(darks_t)
-        dark = bias.process_bias(dark, bias_obj)
+        pre_dark_obj = {'data': dark, 'errors': None}
+        dark = (bias.process_bias(pre_dark_obj, bias_obj))['data']
         dark[dark < 0] = 0
 
-        hdr = [headers[i] for i in range(len(headers)) if times[i] == t][0]
-        HDUs.append(fits.ImageHDU(dark, header=hdr))
+        # first header with dark_exp exposition
+        hdr = [headers[i] for i in range(len(headers))
+               if times[i] == dark_exp][0]
+        dark_frames.append(fits.ImageHDU(dark, header=hdr))
 
-    return(HDUs)
+    return dark_frames
 
 
 def dark_from_file(dark_file):
-    if (type(dark_file) == str):
+    if isinstance(dark_file, str):
         dark_file = fits.open(dark_file)
-    darks = dict([(x.header["EXPOSURE"], x.data) for x in dark_file])
+    darks = {x.header["EXPOSURE"]: x.data for x in dark_file}
     dark = get_dark_interp(darks)
-    return(dark)
+    return dark
 
 
 def process_dark(data, dark=None, exposures=None):
     if dark is None:
-        return(data)
-    data_res = [frame - dark(t) for frame, t in zip(data, exposures)]
-    return(data_res)
+        return data
+    data_res = [frame - dark(t) for frame, t in zip(data['data'], exposures)]
+    return {'data': data_res, 'errors': data['errors']}
 
 
 def main(args=None):
+    """This method runs if the file is running as a program"""
     parser = argparse.ArgumentParser()
     parser.add_argument('filenames', nargs='+',
                         help="fits files with dark frames")
@@ -59,7 +64,7 @@ def main(args=None):
     pargs = parser.parse_args(args[1:])
 
     if pargs.BIAS:
-        bias_obj = bias.bias_from_file(pargs.BIAS)[0]
+        bias_obj = bias.bias_from_file(pargs.BIAS)
     else:
         bias_obj = None
 
@@ -72,7 +77,7 @@ def main(args=None):
     hdul = get_dark_file(dark_files, headers, bias_obj)
     hdul.writeto(pargs.out, overwrite=True)
 
-    return(0)
+    return 0
 
 
 if __name__ == '__main__':
