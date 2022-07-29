@@ -92,8 +92,8 @@ def process_bias(data, bias_obj=None):
     Parameters
     ----------
     data : dict
-        'data' - 3D ndarray, array of data images
-        'errors' - 3D ndarray, array of corresponding errors
+        'data' - 2D or 3D ndarray, array of data images
+        'errors' - 2D or 3D ndarray, array of corresponding errors squared
     bias_obj : dict
         'data' - np.array, superbias frame
         'errors' - np.array, superbias errors squared
@@ -108,7 +108,10 @@ def process_bias(data, bias_obj=None):
         return data
 
     data_processed = data['data'] - bias_obj['data']
-    errors_processed = data['errors'] + bias_obj['errors']
+    if data['errors'] is not None:
+        errors_processed = data['errors'] + bias_obj['errors']
+    else:
+        errors_processed = None
     return({'data': data_processed, 'errors': errors_processed})
 
 
