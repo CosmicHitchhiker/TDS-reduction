@@ -8,6 +8,22 @@ from astropy.io import fits
 
 
 def get_dark_interp(darks):
+    """Generate interpolation object with dark current for any exposition.
+
+    Generate scipy interp1d object that takes exposition
+    and returns dark current in each pixel for that exposition.
+
+    Parameters
+    ----------
+    darks : dict
+        keys - expositions of each dark frames (floats)
+        values - dark frames (2D ndarray)
+
+    Returns
+    -------
+    dark : interp1d (scipy.interpolate.interp1d)
+        object takes exposition and reurns dark for it
+    """
     # На входе - словарь экспозиция-дарккадр
     dark_t = np.array(list(darks.keys()))
     dark_img = np.array(list(darks.values()))
@@ -16,6 +32,25 @@ def get_dark_interp(darks):
 
 
 def get_dark_file(data, headers, bias_obj=None):
+    """Prepare dark file with separate hdu for each expopsition.
+
+    Apply sigma-clipping to all given dark images (each exp separately).
+    Summarize dark frames for each exposition.
+    Subtract bias if given.
+
+    Parameters
+    ----------
+    data : 3D ndarray
+        Array of dark frames.
+    headers : list of astropy header
+        Headers corresponding to data.
+        Headers are used for reading expositions.
+
+    Returns
+    -------
+    dark_frames : list of fits.ImageHDU
+        Resulting file with summarized dark for each exposition.
+    """
     times = [x["EXPOSURE"] for x in headers]
 
     dark_times = sorted(set(times))
@@ -38,6 +73,18 @@ def get_dark_file(data, headers, bias_obj=None):
 
 
 def dark_from_file(dark_file):
+    """Get dark object from prepared dark file.
+
+    Parameters
+    ----------
+    dark_file : str or list of fits.ImageHDU
+        File with array of dark frames or path to it
+
+    Returns
+    -------
+    dark_obj : scipy.interpolate.interp1d
+        object that returns dark for given exposition
+    """
     if isinstance(dark_file, str):
         dark_file = fits.open(dark_file)
     darks = {x.header["EXPOSURE"]: x.data for x in dark_file}
@@ -46,6 +93,25 @@ def dark_from_file(dark_file):
 
 
 def process_dark(data, dark=None, exposures=None):
+    """Apply dark calibration to the given data.
+
+    Subtract dark frame of given exposures from all of the given data frames.
+
+    Parameters
+    ----------
+    data : dict
+        'data' - 2D or 3D ndarray, array of data images
+        'errors' - 2D or 3D ndarray, array of corresponding errors squared
+    dark_obj : scipy.interpolate.interp1d
+        object that returns dark for given exposition
+    exposures : list of floats
+        list of corresponding exposition for each data['data']
+
+    Returns
+    -------
+    data : dict
+        Has the same structure as input data
+    """
     if dark is None:
         return data
     data_res = [frame - dark(t) for frame, t in zip(data['data'], exposures)]
@@ -60,7 +126,7 @@ def main(args=None):
     parser.add_argument('-d', '--dir', help="directory with input files")
     parser.add_argument('-o', '--out', default='../data/dark.fits',
                         help='output file')
-    parser.add_argument('-B', '--BIAS', help="bias frame (fits) to substract")
+    parser.add_argument('-B', '--BIAS', help="bias frame (fits) to subtract")
     pargs = parser.parse_args(args[1:])
 
     if pargs.BIAS:

@@ -87,7 +87,7 @@ def bias_from_file(bias_file):
 def process_bias(data, bias_obj=None):
     """Apply bias calibration to the given data.
 
-    Substract bias frame from all of the given data frames.
+    Subtract bias frame from all of the given data frames.
 
     Parameters
     ----------
