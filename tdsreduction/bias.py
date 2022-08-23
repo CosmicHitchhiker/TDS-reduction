@@ -104,15 +104,18 @@ def process_bias(data, bias_obj=None):
     data : dict
         Has the same structure as input data
     """
+    data_copy = data.copy()
     if bias_obj is None:
-        return data
+        return data_copy
 
-    data_processed = data['data'] - bias_obj['data']
-    if data['errors'] is not None:
-        errors_processed = data['errors'] + bias_obj['errors']
-    else:
-        errors_processed = None
-    return({'data': data_processed, 'errors': errors_processed})
+    data_copy['data'] = data_copy['data'] - bias_obj['data']
+
+    if 'errors' not in data_copy:
+        return data_copy
+
+    if data_copy['errors'] is not None:
+        data_copy['errors'] = data_copy['errors'] + bias_obj['errors']
+    return data_copy
 
 
 def main(args=None):
