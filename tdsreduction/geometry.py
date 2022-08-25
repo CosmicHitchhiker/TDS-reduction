@@ -8,11 +8,13 @@ from tqdm import tqdm
 
 
 def gauss(x, s, x0, A):
+    """Simple gaussian"""
     return A * np.exp(-(x - x0)**2 / (2 * s**2))
 
 
 def gauss_cont(x, s, x0, A, k, b):
-    return A * np.exp(-(x - x0)**2 / (2 * s**2)) + k*x + b
+    """Gaussian plus continuum"""
+    return A * np.exp(-(x - x0)**2 / (2 * s**2)) + k * x + b
 
 
 # FIXME: make rng wider, fit by gauss_cont
@@ -24,7 +26,7 @@ def one_peak_fwhm(x, A, wl, spec, guess=1):
 
 # FIXME: fit by gauss_cont
 def one_peak_amp(x, A, wl, spec, fwhm=10):
-    rng = (wl > x - 2*fwhm) & (wl < x + 2*fwhm)
+    rng = (wl > x - 2 * fwhm) & (wl < x + 2 * fwhm)
     return 2.355 * np.abs(opt.curve_fit(gauss, wl[rng], spec[rng],
                                         p0=[fwhm, x, A])[0][2])
 
@@ -38,10 +40,10 @@ def calc_fwhm(spec, wl=None, n=3, guess=10):
     amps = amps[np.argsort(amps)][-n:]
 
     def one_peak_fwhm_(x, A):
-        return(one_peak_fwhm(x, A, wl, spec, guess))
+        return one_peak_fwhm(x, A, wl, spec, guess)
 
     fwhm = np.average(list(map(one_peak_fwhm_, wl[peaks], amps)))
-    return(fwhm)
+    return fwhm
 
 
 def find_peaks(spec, fwhm=1, h=1, d=1):
@@ -49,7 +51,7 @@ def find_peaks(spec, fwhm=1, h=1, d=1):
     Затем удаляет из списка пики, у которых есть соседи ближе fwhm*d'''
     # spec = spec-np.min(spec)
     spec = spec / np.median(spec)
-    pks = sig.find_peaks(spec, height=h, distance=fwhm*d)[0]
+    pks = sig.find_peaks(spec, height=h, distance=fwhm * d)[0]
     return(pks[:])
 
 
@@ -65,7 +67,7 @@ def find_lines_cluster(peaks, y=None, verbose=False, k=50, eps=70, clust=10):
     y_matrix = np.tile(y, peaks.shape[0])
     # Плоский массив х-координат
     # k показывает "вес" сдвига по х
-    peaks_f = peaks.flatten()*k
+    peaks_f = peaks.flatten() * k
     # Убираем все NaN
     mask = np.isnan(peaks_f)
     peaks_f = peaks_f[~mask]
@@ -97,7 +99,7 @@ def find_lines_cluster(peaks, y=None, verbose=False, k=50, eps=70, clust=10):
     for n_line in set(y_pred):
         line_y = vectors[:, 1][y_pred == n_line]
         dy = line_y.max() - line_y.min()
-        if (dy < (y.max() - y.min())/2.5):
+        if (dy < (y.max() - y.min()) / 2.5):
             mask = (mask & (y_pred != n_line))
 
     return(vectors[mask], y_pred[mask])
@@ -111,13 +113,13 @@ def fine_peak_position_i(row, peak, fwhm=10, x=None):
     fwhm = int(fwhm)
 
     amp = row[peak]
-    b = np.median(row)/2.
-    x = x[peak-2*fwhm:peak+2*fwhm]
-    y = row[peak-2*fwhm:peak+2*fwhm]
+    b = np.median(row) / 2.
+    x = x[peak - 2 * fwhm:peak + 2 * fwhm]
+    y = row[peak - 2 * fwhm:peak + 2 * fwhm]
     try:
-        p0 = [fwhm/2.335, peak, amp, 0, b]
-        bounds = ([fwhm*0.3/2.335, peak-1, amp*0.7, -0.1, 0],
-                  [fwhm*3/2.335, peak+1, amp*1.3, 0.1, np.inf])
+        p0 = [fwhm / 2.335, peak, amp, 0, b]
+        bounds = ([fwhm * 0.3 / 2.335, peak - 1, amp * 0.7, -0.1, 0],
+                  [fwhm * 3 / 2.335, peak + 1, amp * 1.3, 0.1, np.inf])
         fine_peak = opt.curve_fit(gauss_cont, x, y, p0=p0,
                                   bounds=bounds)[0][1]
         return(fine_peak)
@@ -132,7 +134,7 @@ def refine_peaks_i(neon, peaks, fwhm=10):
     for i in tqdm(range(len(peaks))):
         peak = peaks[i]
         peaks[i][0] = fine_peak_position_i(
-                        neon[int(peak[1])], peak[0], fwhm, x)
+            neon[int(peak[1])], peak[0], fwhm, x)
     return(peaks)
 
 
