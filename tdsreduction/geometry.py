@@ -1,6 +1,6 @@
 import numpy as np
 import scipy.optimize as opt
-import astropy.signal as sig
+import scipy.signal as sig
 from itertools import zip_longest, islice, cycle
 from sklearn.cluster import DBSCAN
 from matplotlib import pyplot as plt

@@ -1,9 +1,12 @@
 #! /usr/bin/python3
 
-
 import numpy as np
 import geometry as gm
 from matplotlib import pyplot as plt
+import bias
+import dark
+import cosmics
+from astropy.io import fits
 
 
 def get_correction_map(neon, verbose=False, ref='mean', use_clust=True):
@@ -42,7 +45,7 @@ def get_correction_map(neon, verbose=False, ref='mean', use_clust=True):
     peaks, n_lines = gm.find_lines_cluster(peaks, y, verbose=True)
     # В каждом элементе peaks 1-я координата - х, 2 - у
     # в n_lines для каждой точки записано к какой она линии относится
-    peaks = gm.refine_peaks(neon, peaks, fwhm)
+    peaks = gm.refine_peaks_i(neon, peaks, fwhm)
 
     # Нумеруем каждую найденную линию неона (делаем список "номеров")
     enum_lines = set(n_lines.tolist())
@@ -54,7 +57,7 @@ def get_correction_map(neon, verbose=False, ref='mean', use_clust=True):
     # (в зависимости от х-координаты центра линии)
     deg2 = 3
 
-    k = np.zeros((len(enum_lines), deg+1))
+    k = np.zeros((len(enum_lines), deg + 1))
     plt.figure(18)
     plt.clf()
     plt.imshow(neon)
@@ -82,6 +85,47 @@ def get_correction_map(neon, verbose=False, ref='mean', use_clust=True):
     return(corr_map, new_x)
 
 
+def interpolate_correction_map(frame, corr_map):
+    x = np.arange(len(frame[0]))
+    data = np.array(list(map(lambda val, coord: np.interp(coord, x, val),
+                             frame, corr_map)))
+    return data
+
+
+def get_corrections_file(data, bias_obj=None, dark_obj=None, cosm_obj=None):
+    data_copy = {'data': data.copy()}
+    data_copy = bias.process_bias(data_copy, bias_obj)
+    if cosm_obj:
+        data_copy = cosmics.process_cosmics(data_copy)
+
+    neon = np.sum(data_copy['data'], axis=0)
+    corr_map, new_x = get_correction_map(neon)
+    res = fits.PrimaryHDU(corr_map)
+    res.header['GOODX1'] = np.min(new_x)
+    res.header['GOODX2'] = np.max(new_x)
+    return res
+
+
+def corrections_from_file(corrections_file):
+    if isinstance(corrections_file, str):
+        corrections_file = fits.open(corrections_file)[0]
+
+    x1 = corrections_file.header['GOODX1']
+    x2 = corrections_file.header['GOODX2'] + 1
+    good_x = np.arange(x1, x2)
+    res = {'data': corrections_file.data, 'new_x': good_x}
+    return res
+
+
+def process_corrections(data, corr_obj):
+    data_copy = data.copy()
+    new_x = corr_obj['new_x']
+    corr_map = corr_obj['data'][:, new_x]
+    data_copy['data'] = np.array([interpolate_correction_map(x, corr_map)
+                                  for x in data_copy['data']])
+    return data_copy
+
+
 def main(args=None):
     parser = argparse.ArgumentParser()
     parser.add_argument('filenames', nargs='+',
@@ -92,21 +136,43 @@ def main(args=None):
     parser.add_argument('-B', '--BIAS', help="bias frame (fits) to substract")
     parser.add_argument('-D', '--DARK',
                         help="prepared fits-file with dark frames")
+    parser.add_argument('-C', '--COSMICS', action='store_true',
+                        help="set this argument to clear cosmic hints")
     pargs = parser.parse_args(args[1:])
 
     if pargs.BIAS:
-        superbias = fits.getdata(pargs.BIAS)
+        bias_obj = bias.bias_from_file(pargs.BIAS)
     else:
-        superbias = 0
+        bias_obj = None
 
-    # if pargs.DARK:
-    #
+    if pargs.DARK:
+        dark_obj = dark.dark_from_file(pargs.DARK)
+    else:
+        dark_obj = None
+
+    if pargs.COSMICS:
+        if_clear_cosmics = True
+    else:
+        if_clear_cosmics = False
+
+    arc_names = pargs.filenames
+    if pargs.dir:
+        arc_names = [pargs.dir + x for x in arc_names]
+    arc_files, headers = open_fits_array_data(arc_names, header=True)
+
+    corr_file = get_corrections_file(arc_files, bias_obj, dark_obj,
+                                     if_clear_cosmics)
+    corr_obj = corrections_from_file(corr_file)
+    data = {'data': arc_files}
+    res = process_corrections(data, corr_obj)
+    plt.imshow(res['data'][0])
+    plt.show()
+    corr_file.writeto(pargs.out, overwrite=True)
     return(0)
 
 
 if __name__ == '__main__':
     import sys
     from utils import open_fits_array_data
-    from astropy.io import fits
     import argparse
     sys.exit(main(sys.argv))
