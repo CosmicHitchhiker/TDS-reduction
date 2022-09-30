@@ -137,3 +137,5 @@ test_venv/
 tdsreduction/commands_to_test.txt
 
 tdsreduction/Test_Polygon.ipynb
+
+*.ipynb
