@@ -85,10 +85,14 @@ def get_correction_map(neon, verbose=False, ref='mean', use_clust=True):
     return(corr_map, new_x)
 
 
-def interpolate_correction_map(frame, corr_map):
+def interpolate_correction_map(frame, corr_map, inverse=False):
     x = np.arange(len(frame[0]))
-    data = np.array(list(map(lambda val, coord: np.interp(coord, x, val),
-                             frame, corr_map)))
+    if inverse:
+        data = np.array(list(map(lambda val, coord: np.interp(x, coord, val),
+                                 frame, corr_map)))
+    else:
+        data = np.array(list(map(lambda val, coord: np.interp(coord, x, val),
+                                 frame, corr_map)))
     return data
 
 
