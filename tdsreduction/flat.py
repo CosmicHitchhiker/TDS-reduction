@@ -34,30 +34,25 @@ def get_flat_file(flat_frames, flat_headers,
     theor_flat = np.ones(len(flat))[:, np.newaxis] @ flat_string[np.newaxis]
 
     theor_flat = corrections.interpolate_correction_map(theor_flat,
-                                                        corr_obj['data'])
+                                                        corr_obj['data'],
+                                                        inverse=True)
     flat_coeff = theor_flat / flat
     res = fits.PrimaryHDU(flat_coeff, header=flat_headers[0])
 
     return res
 
 
-def flat_from_file(corrections_file):
-    if isinstance(corrections_file, str):
-        corrections_file = fits.open(corrections_file)[0]
+def flat_from_file(flat_file):
+    if isinstance(flat_file, str):
+        flat_file = fits.open(flat_file)[0]
 
-    x1 = corrections_file.header['GOODX1']
-    x2 = corrections_file.header['GOODX2'] + 1
-    good_x = np.arange(x1, x2)
-    res = {'data': corrections_file.data, 'new_x': good_x}
+    res = {'data': flat_file.data}
     return res
 
 
-def process_flat(data, corr_obj):
+def process_flat(data, flat_obj):
     data_copy = data.copy()
-    new_x = corr_obj['new_x']
-    corr_map = corr_obj['data'][:, new_x]
-    data_copy['data'] = np.array([interpolate_correction_map(x, corr_map)
-                                  for x in data_copy['data']])
+    data_copy = data_copy * flat_obj['data']
     return data_copy
 
 
