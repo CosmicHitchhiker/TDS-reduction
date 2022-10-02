@@ -5,6 +5,7 @@ from itertools import zip_longest, islice, cycle
 from sklearn.cluster import DBSCAN
 from matplotlib import pyplot as plt
 from tqdm import tqdm
+from numpy.polynomial import polynomial as pln
 
 
 def gauss(x, s, x0, A):
@@ -166,3 +167,98 @@ def my_poly(p, y):
     y = np.ones((n, m)) * y
     y_powered = np.power(y.T, pow_arr)
     return np.dot(y_powered, p)
+
+
+def gauss_spectra(FWHM, peaks, amps, bias=0, step=1, rng=None):
+    if rng is None:
+        mincoord = peaks.min() - 2 * FWHM
+        maxcoord = peaks.max() + 2 * FWHM
+    else:
+        mincoord = rng[0]
+        maxcoord = rng[1]
+    coords = np.arange(mincoord, maxcoord, step)
+    signal = np.zeros(len(coords)) + bias
+
+    for peak, amp in zip(peaks, amps):
+        signal = signal + gauss_fwhm(peak, amp, FWHM, coords)
+
+    return signal, coords
+
+
+def gauss_fwhm(x0, amp, fwhm, coords):
+    sigm = fwhm / 2.3548
+    return amp * np.exp(-0.5 * (coords - x0)**2 / (sigm**2))
+
+
+def get_peaks_h(pos, amp, h=10, d=4):
+    FWHM = 2.7
+    refspec, refcoords = gauss_spectra(FWHM, pos, amp)
+    k = (refcoords.max() - refcoords.min()) / len(refcoords)
+    FWHM_pix_ref = FWHM / k
+    peaks_ref_n = find_peaks(refspec, fwhm=FWHM_pix_ref, h=h, d=d)
+    peaks_ref = refcoords[peaks_ref_n]
+    peaks_ref_theor = find_correspond_peaks(pos, peaks_ref)[0]
+    return(peaks_ref_theor)
+
+
+def find_correspond_peaks(peaks1, peaks2, mask=False):
+    # ПРИМЕНЯТЬ ТОЛЬКО КОГДА ПИКИ 1 и 2 БЛИЗКИ ДРУГ К ДРУГУ
+    shape = (len(peaks1), 1)
+    diff_matrix = np.abs(np.tile(peaks2, shape) - peaks1.reshape(shape))
+    # print(diff_matrix.shape)
+    mask2 = np.argmin(diff_matrix, axis=1)
+    # print(mask2)
+    mask1 = np.argmin(diff_matrix, axis=0)
+    # print(mask1)
+
+    mask2_ = np.array([], dtype='int')
+    for i2, i1 in np.ndenumerate(mask2):
+        if mask1[i1] == i2:
+            mask2_ = np.append(mask2_, i1)
+    mask2_ = list(set(mask2_.tolist()))
+
+    mask1_ = np.array([], dtype='int')
+    for i1, i2 in np.ndenumerate(mask1):
+        if mask2[i2] == i1:
+            mask1_ = np.append(mask1_, i2)
+    mask1_ = list(set(mask1_.tolist()))
+
+    # элементы из первого массива, на которые ссылается второй
+    peaks1_good = np.sort(peaks1[mask1_])
+    # print(peaks1_good)
+    # элементы из второго массива, на которые ссылается первый
+    peaks2_good = np.sort(peaks2[mask2_])
+    # print(peaks2_good)
+    if mask:
+        return(mask1_, mask2_)
+    else:
+        return(peaks1_good, peaks2_good)
+
+
+def mynorm(x):
+    minmax = [x.min(), x.max()]
+    xnorm = (x - x.min()) / (x.max() - x.min())
+    return(xnorm, minmax)
+
+
+def tnorm(x, minmax):
+    xnorm = (x - minmax[0]) / (minmax[1] - minmax[0])
+    return(xnorm)
+
+
+def unnorm(x, minmax):
+    unorm = x * (minmax[1] - minmax[0]) + minmax[0]
+    return unorm
+
+
+def polyval2d(x, y, k, deg=[2, 2]):
+    vandermond = pln.polyvander2d(x, y, deg)
+    f = vandermond @ k
+    return(f)
+
+
+def polyfit2d(x, y, f, deg=[2, 2]):
+    vandermond = pln.polyvander2d(x, y, deg)
+    k = np.linalg.lstsq(vandermond, f)
+    return(k)
+    
