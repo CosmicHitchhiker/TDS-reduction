@@ -100,7 +100,7 @@ def find_lines_cluster(peaks, y=None, verbose=False, k=50, eps=70, clust=10):
     for n_line in set(y_pred):
         line_y = vectors[:, 1][y_pred == n_line]
         dy = line_y.max() - line_y.min()
-        if (dy < (y.max() - y.min()) / 2.5):
+        if (dy < (y.max() - y.min()) / 2):
             mask = (mask & (y_pred != n_line))
 
     return(vectors[mask], y_pred[mask])
@@ -193,12 +193,13 @@ def gauss_fwhm(x0, amp, fwhm, coords):
 def get_peaks_h(pos, amp, h=10, d=4):
     FWHM = 2.7
     refspec, refcoords = gauss_spectra(FWHM, pos, amp)
+    refspec += 1
     k = (refcoords.max() - refcoords.min()) / len(refcoords)
     FWHM_pix_ref = FWHM / k
     peaks_ref_n = find_peaks(refspec, fwhm=FWHM_pix_ref, h=h, d=d)
     peaks_ref = refcoords[peaks_ref_n]
     peaks_ref_theor = find_correspond_peaks(pos, peaks_ref)[0]
-    return(peaks_ref_theor)
+    return(peaks_ref_theor, peaks_ref_n)
 
 
 def find_correspond_peaks(peaks1, peaks2, mask=False):
@@ -216,12 +217,14 @@ def find_correspond_peaks(peaks1, peaks2, mask=False):
         if mask1[i1] == i2:
             mask2_ = np.append(mask2_, i1)
     mask2_ = list(set(mask2_.tolist()))
+    mask2_.sort()
 
     mask1_ = np.array([], dtype='int')
     for i1, i2 in np.ndenumerate(mask1):
         if mask2[i2] == i1:
             mask1_ = np.append(mask1_, i2)
     mask1_ = list(set(mask1_.tolist()))
+    mask1_.sort()
 
     # элементы из первого массива, на которые ссылается второй
     peaks1_good = np.sort(peaks1[mask1_])
@@ -261,4 +264,3 @@ def polyfit2d(x, y, f, deg=[2, 2]):
     vandermond = pln.polyvander2d(x, y, deg)
     k = np.linalg.lstsq(vandermond, f)
     return(k)
-    

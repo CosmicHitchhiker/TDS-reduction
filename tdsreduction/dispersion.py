@@ -6,12 +6,15 @@ from matplotlib import pyplot as plt
 import bias
 import dark
 import cosmics
+import corrections
 from astropy.io import fits
+import argparse
+from matplotlib.patches import ConnectionPatch
 
 
-def get_peaks_clust(neon):
-    h = 10  # Во сколько минимально раз пик должен быть выше медианы
-    d = 5  # Минимальное расстояние (в fwhm) между пиками
+def get_peaks_clust(neon, h=10, d=5, k=50, eps=70, clust=10):
+    h = h  # Во сколько минимально раз пик должен быть выше медианы
+    d = d  # Минимальное расстояние (в fwhm) между пиками
 
     y, x = np.shape(neon)
     y = np.arange(y)
@@ -24,7 +27,40 @@ def get_peaks_clust(neon):
     # Пики в каждой строчке (list из ndarray разной длины)
     peaks = [gm.find_peaks(row, fwhm=fwhm, h=h, d=d) for row in neon]
 
-    peaks, n_lines = gm.find_lines_cluster(peaks, y, verbose=True)
+    peaks, n_lines = gm.find_lines_cluster(peaks, y, verbose=True, k=k,
+                                           eps=eps, clust=clust)
+    return peaks, n_lines, fwhm
+
+
+def get_peaks_clust_setup(neon):
+
+    h = 10
+    d = 5
+    k = 50
+    eps = 70
+    clust = 10
+
+    need_to_change = 'Yes'
+    while need_to_change != '':
+        peaks, n_lines, fwhm = get_peaks_clust(neon, h, d, k, eps, clust)
+
+        params = argparse.ArgumentParser(exit_on_error=False)
+        params.add_argument('-l', type=float, default=h)
+        params.add_argument('-d', type=float, default=d)
+        params.add_argument('-k', type=float, default=k)
+        params.add_argument('-eps', type=float, default=eps)
+        params.add_argument('-clust', type=int, default=clust)
+        parags = params.parse_args('')
+        print(parags)
+        need_to_change = input("Change any parameters?(leave blank if No)")
+        if need_to_change:
+            parags = params.parse_args(need_to_change.split())
+            h = parags.l
+            d = parags.d
+            k = parags.k
+            eps = parags.eps
+            clust = parags.clust
+
     return peaks, n_lines, fwhm
 
 
@@ -36,6 +72,13 @@ def coord_to_lam(image, wlmap, wl):
     return(image_res)
 
 
+def calc_subplot_dim(n):
+    m = round(n**0.5)
+    if m**2 < n:
+        return m, m + 1
+    return m, m
+
+
 def get_disp_file(data, ref, approx_wl, bias_obj=None, dark_obj=None,
                   cosm_obj=None, hdr=None):
     data_copy = {'data': data.copy()}
@@ -43,11 +86,13 @@ def get_disp_file(data, ref, approx_wl, bias_obj=None, dark_obj=None,
     if cosm_obj:
         data_copy = cosmics.process_cosmics(data_copy)
 
-    neon_data = data_copy['data'][:, :, ::-1]
+    if hdr['DISP'] == 'R':
+        neon_data = data_copy['data'][:, :, ::-1]
+    else:
+        neon_data = data_copy['data']
     neon = np.sum(neon_data, axis=0)
-    peaks, n_lines, fwhm_pix = get_peaks_clust(neon)
 
-    peaks = gm.refine_peaks_i(neon, peaks, fwhm_pix)
+    peaks, n_lines, fwhm_pix = get_peaks_clust_setup(neon)
 
     m_line = []
 
@@ -68,27 +113,44 @@ def get_disp_file(data, ref, approx_wl, bias_obj=None, dark_obj=None,
 
     refspec = gm.gauss_spectra(fwhm_pix, ref[0], ref[1], bias=0,
                                step=1, rng=None)
-    plt.figure()
-    plt.plot(refspec[1], refspec[0])
-    plt.figure()
-    plt.plot(neon[225])
+    fig, ax = plt.subplots(2, 1)
+    ax[0].plot(refspec[1], refspec[0])
+    ax[0].set_title('Reference')
+    ax[1].plot(neon[225])
+    ax[1].set_title('Observed')
     plt.show()
 
     # k = np.polyfit(np.arange(len(approx_wl))[::], approx_wl, 3)
     # k[-1] += 20
-    k2 = [7.41241676e-16, -3.20128023e-12, 5.79035035e-09, -3.04884902e-05,
-          9.28102343e-01, 5.62170023e+03]
+    if hdr['DISP'] == 'R':
+        k2 = [7.41241676e-16, -3.20128023e-12, 5.79035035e-09, -3.04884902e-05,
+              9.28102343e-01, 5.62170023e+03]
+    if hdr['DISP'] == 'B':
+        k2 = [6.14095880e-15, -3.71267430e-11, 1.01336659e-07, -1.75917785e-04,
+              1.35359449e+00, 3.32310482e+03]
     approx_line = np.polyval(k2, m_line)
-    theor = gm.get_peaks_h(ref[0], ref[1])
+    theor, theor_n = gm.get_peaks_h(ref[0], ref[1])
     obs_mask, theor_mask = gm.find_correspond_peaks(approx_line,
                                                     theor, mask=True)
 
-    plt.figure()
-    plt.plot(approx_line, np.zeros(len(approx_line)), 'o')
-    plt.plot(theor, np.ones(len(theor)), 'o')
-    plt.plot(approx_line[obs_mask], np.zeros(len(approx_line[obs_mask])), 'o')
-    plt.plot(theor[theor_mask], np.ones(len(theor[theor_mask])), 'o')
+    fig, ax = plt.subplots(2, 1)
+    m_line_n = m_line.astype(int)
+    ax[0].plot(refspec[1], refspec[0])
+    ax[0].plot(refspec[1][theor_n], refspec[0][theor_n], 'o', ms=3)
+    ax[1].plot(neon[225])
+    ax[1].plot(m_line_n, neon_data[0, 225][m_line_n], 'o', ms=3)
+
+    for i in range(len(approx_line[obs_mask])):
+        xA = refspec[1][theor_n][theor_mask][i]
+        yA = refspec[0][theor_n][theor_mask][i]
+        xB = m_line.astype(int)[obs_mask][i]
+        yB = neon_data[0, 225][m_line.astype(int)][obs_mask][i]
+        con = ConnectionPatch((xA, yA), (xB, yB), 'data', 'data', axesA=ax[0],
+                              axesB=ax[1], lw=0.5)
+        fig.add_artist(con)
     plt.show()
+
+    peaks = gm.refine_peaks_i(neon, peaks, fwhm_pix)
 
     ref_peaks = np.zeros(len(peaks))
 
@@ -113,26 +175,31 @@ def get_disp_file(data, ref, approx_wl, bias_obj=None, dark_obj=None,
     # fig = plt.figure()
     deviations = []
     mean = []
+
+    dim_subpl = calc_subplot_dim(len(pair_n_wl))
+    fig, ax = plt.subplots(*dim_subpl)
+    i = 0
+    j = 0
     for n, wl in pair_n_wl:
         p = peaks[n_lines == n]
         prediction = gm.polyval2d(gm.tnorm(p[:, 0], x_mm),
                                   gm.tnorm(p[:, 1], y_mm), coeff, deg)
         prediction = gm.unnorm(prediction, ref_mm)
-        # print()
-        # print(wl)
-        # print(np.std(wl-prediction))
-        # print(np.mean(wl-prediction))
         mean.append(np.median(wl - prediction))
         err_fit.append(np.std(wl - prediction))
         deviations.append(wl - prediction)
-        # plt.figure()
-        # plt.plot(p[:, 1], wl - prediction, '.')
-        # plt.axhline(0, linestyle='--')
-    # plt.show()
-
+        ax[j, i].plot(p[:, 1], wl - prediction, '.')
+        ax[j, i].axhline(0, linestyle='--', label=str(wl))
+        ax[j, i].legend()
+        i += 1
+        if i == dim_subpl[0]:
+            i = 0
+            j += 1
+    fig.show()
     print()
     # print(err_fit)
     print(np.mean(err_fit))
+    print(np.mean(err_fit) * 3e+5 / 5500.)
 
     plt.figure()
     plt.ylim(-0.12, 0.12)
@@ -147,18 +214,14 @@ def get_disp_file(data, ref, approx_wl, bias_obj=None, dark_obj=None,
     WL_map = gm.polyval2d(gm.tnorm(xx, x_mm), gm.tnorm(yy, y_mm), coeff, deg)
     WL_map = gm.unnorm(WL_map, ref_mm)
 
-    res = fits.PrimaryHDU(WL_map[:, ::-1])
-    disp_obj = {'data': WL_map}
-    plt.figure()
-    plt.imshow(neon)
-    plt.show()
+    if hdr['DISP'] == 'R':
+        res = fits.PrimaryHDU(WL_map[:, ::-1])
+    else:
+        res = fits.PrimaryHDU(WL_map[:])
+    disp_obj = {'data': res.data}
     neon_data = {'data': [neon]}
     neon_corrected = process_disp(neon_data, disp_obj)
-    print(neon_corrected)
-    print()
-    print(neon_corrected['data'])
-    print()
-    print()
+
     if hdr is not None:
         neon_res = fits.PrimaryHDU(neon_corrected['data'][0], header=hdr)
     else:
@@ -198,6 +261,7 @@ def main(args=None):
     parser.add_argument('-d', '--dir', help="directory with input files")
     parser.add_argument('-o', '--out', default='../data/disp_map.fits',
                         help='output file')
+    parser.add_argument('-G', '--GEOMETRY', help="file with correction map")
     parser.add_argument('-B', '--BIAS', help="bias frame (fits) to substract")
     parser.add_argument('-D', '--DARK',
                         help="prepared fits-file with dark frames")
@@ -219,6 +283,11 @@ def main(args=None):
         if_clear_cosmics = True
     else:
         if_clear_cosmics = False
+
+    if pargs.GEOMETRY:
+        corr_obj = corrections.corrections_from_file(pargs.GEOMETRY)
+    else:
+        corr_obj = None
 
     file_names = pargs.filenames
     arc_names = []
@@ -250,7 +319,8 @@ def main(args=None):
     ref[0] = np.sort(ref[0])
 
     disp_file, neon_file = get_disp_file(arc_files, ref, approx_wl, bias_obj,
-                                         dark_obj, if_clear_cosmics)
+                                         dark_obj, if_clear_cosmics,
+                                         headers[0])
     disp_file.writeto(pargs.out, overwrite=True)
     neon_name = '.'.join((pargs.out).split('.')[:-1]) + '_neon.fits'
     neon_file.writeto(neon_name, overwrite=True)
@@ -260,5 +330,4 @@ def main(args=None):
 if __name__ == '__main__':
     import sys
     from utils import open_fits_array_data
-    import argparse
     sys.exit(main(sys.argv))
