@@ -113,9 +113,11 @@ def process_dark(data, dark=None, exposures=None):
         Has the same structure as input data
     """
     if dark is None:
-        return data
-    data_res = [frame - dark(t) for frame, t in zip(data['data'], exposures)]
-    return {'data': data_res, 'errors': data['errors']}
+        return data.copy()
+    data_copy = data.copy()
+    data_res = [frame - dark(t) for frame, t in zip(data_copy['data'], exposures)]
+    data_copy['data'] = data_res
+    return data_copy
 
 
 def main(args=None):
