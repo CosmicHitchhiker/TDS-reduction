@@ -79,7 +79,7 @@ def calc_subplot_dim(n):
     return m, m
 
 
-def get_disp_file(data, ref, approx_wl, bias_obj=None, dark_obj=None,
+def get_dispersion_file(data, ref, approx_wl, bias_obj=None, dark_obj=None,
                   cosm_obj=None, hdr=None):
     data_copy = {'data': data.copy()}
     data_copy = bias.process_bias(data_copy, bias_obj)
@@ -168,7 +168,7 @@ def get_disp_file(data, ref, approx_wl, bias_obj=None, dark_obj=None,
     y_fit, y_mm = gm.mynorm(y_peaks[mask])
     ref_fit, ref_mm = gm.mynorm(ref_peaks[mask])
 
-    deg = [7, 7]
+    deg = [5, 5]
     coeff = gm.polyfit2d(x_fit, y_fit, ref_fit, deg)[0]
 
     err_fit = []
@@ -214,13 +214,23 @@ def get_disp_file(data, ref, approx_wl, bias_obj=None, dark_obj=None,
     WL_map = gm.polyval2d(gm.tnorm(xx, x_mm), gm.tnorm(yy, y_mm), coeff, deg)
     WL_map = gm.unnorm(WL_map, ref_mm)
 
-    if hdr['DISP'] == 'R':
-        res = fits.PrimaryHDU(WL_map[:, ::-1])
-    else:
-        res = fits.PrimaryHDU(WL_map[:])
+    # if hdr['DISP'] == 'R':
+    #     res = fits.PrimaryHDU(WL_map[:, ::-1])
+    # else:
+    #     res = fits.PrimaryHDU(WL_map[:])
+    res = fits.PrimaryHDU(WL_map[:])
     disp_obj = {'data': res.data}
-    neon_data = {'data': [neon]}
-    neon_corrected = process_disp(neon_data, disp_obj)
+    neon_data = {'data': np.array([neon[:,::-1]])}
+    # neon_data = data_copy
+    neon_corrected = process_dispersion(neon_data, disp_obj)
+
+    plt.figure()
+    plt.imshow(neon_data['data'][0])
+    plt.title('Neon')
+    plt.figure()
+    plt.imshow(neon_corrected['data'][0])
+    plt.title('neon_corrected')
+    plt.show()
 
     if hdr is not None:
         neon_res = fits.PrimaryHDU(neon_corrected['data'][0], header=hdr)
@@ -235,20 +245,36 @@ def get_disp_file(data, ref, approx_wl, bias_obj=None, dark_obj=None,
     return res, neon_res
 
 
-def disp_from_file(disp_file):
+def dispersion_from_file(disp_file):
     if isinstance(disp_file, str):
         disp_file = fits.open(disp_file)[0]
     res = {'data': disp_file.data}
     return res
 
 
-def process_disp(data, disp_obj):
+def process_dispersion(data, disp_obj):
     data_copy = data.copy()
-    print(data_copy['data'])
+    if disp_obj is None:
+        return data_copy
     wlmap = disp_obj['data']
-    wl = np.linspace(wlmap[:, 0].max(), wlmap[:, -1].min(), len(wlmap[0]))
+    wl1 = wlmap[:, 0].max()
+    wl2 = wlmap[:, -1].min()
+    wl = np.linspace(wl1, wl2, len(wlmap[0]))
+    print(wl)
+
+    if wl2 > 7000:
+        data_copy['data'] = data_copy['data'][:, :, ::-1]
+
     data_copy['data'] = np.array([coord_to_lam(x, wlmap, wl)
                                   for x in data_copy['data']])
+    # if wl1 < wl2:
+    #     data_copy['data'] = np.array([coord_to_lam(x, wlmap, wl)
+    #                                   for x in data_copy['data']])
+    # else:
+    #     wl = wl[::-1]
+    #     data_copy['data'] = data_copy['data'][:, :, ::-1]
+    #     data_copy['data'] = np.array([coord_to_lam(x, wlmap, wl)
+    #                                   for x in data_copy['data']])
     data_copy['wl'] = wl
     return data_copy
 
@@ -318,7 +344,7 @@ def main(args=None):
     ref[1] = ref[1][np.argsort(ref[0])]
     ref[0] = np.sort(ref[0])
 
-    disp_file, neon_file = get_disp_file(arc_files, ref, approx_wl, bias_obj,
+    disp_file, neon_file = get_dispersion_file(arc_files, ref, approx_wl, bias_obj,
                                          dark_obj, if_clear_cosmics,
                                          headers[0])
     disp_file.writeto(pargs.out, overwrite=True)
