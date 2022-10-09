@@ -129,7 +129,7 @@ def get_dispersion_file(data, ref, approx_wl, bias_obj=None, dark_obj=None,
         k2 = [6.14095880e-15, -3.71267430e-11, 1.01336659e-07, -1.75917785e-04,
               1.35359449e+00, 3.32310482e+03]
     approx_line = np.polyval(k2, m_line)
-    theor, theor_n = gm.get_peaks_h(ref[0], ref[1])
+    theor, theor_n = gm.get_peaks_h(ref[0], ref[1], )
     obs_mask, theor_mask = gm.find_correspond_peaks(approx_line,
                                                     theor, mask=True)
 
@@ -344,9 +344,9 @@ def main(args=None):
     ref[1] = ref[1][np.argsort(ref[0])]
     ref[0] = np.sort(ref[0])
 
-    disp_file, neon_file = get_dispersion_file(arc_files, ref, approx_wl, bias_obj,
-                                         dark_obj, if_clear_cosmics,
-                                         headers[0])
+    disp_file, neon_file = get_dispersion_file(arc_files, ref, approx_wl,
+                                               bias_obj, dark_obj,
+                                               if_clear_cosmics, headers[0])
     disp_file.writeto(pargs.out, overwrite=True)
     neon_name = '.'.join((pargs.out).split('.')[:-1]) + '_neon.fits'
     neon_file.writeto(neon_name, overwrite=True)
@@ -355,5 +355,5 @@ def main(args=None):
 
 if __name__ == '__main__':
     import sys
-    from utils import open_fits_array_data
+    from genfuncs import open_fits_array_data
     sys.exit(main(sys.argv))

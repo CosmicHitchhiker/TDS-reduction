@@ -180,6 +180,6 @@ def main(args=None):
 
 if __name__ == '__main__':
     import sys
-    from utils import open_fits_array_data
+    from genfuncs import open_fits_array_data
     import argparse
     sys.exit(main(sys.argv))
