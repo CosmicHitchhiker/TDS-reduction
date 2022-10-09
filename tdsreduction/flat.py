@@ -52,7 +52,7 @@ def flat_from_file(flat_file):
 
 def process_flat(data, flat_obj):
     data_copy = data.copy()
-    data_copy = data_copy * flat_obj['data']
+    data_copy['data'] = data_copy['data'] * flat_obj['data']
     return data_copy
 
 
