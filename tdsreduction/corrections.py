@@ -9,7 +9,8 @@ import cosmics
 from astropy.io import fits
 
 
-def get_correction_map(neon, verbose=False, ref='mean', use_clust=True):
+def get_correction_map(neon, verbose=False, ref='mean', use_clust=True, h=10,
+                       d=20):
     '''Считает карту интерполяции.
     В каждой строчке - те координаты, на которые нужно
     интерполировать исходное изображение, чтобы исправить
@@ -18,8 +19,8 @@ def get_correction_map(neon, verbose=False, ref='mean', use_clust=True):
     ref = 'mean' - приводить к средним значениям
     ref = 'center' - приводить к значению в центре кадра
     '''
-    h = 10  # Во сколько минимально раз пик должен быть выше медианы
-    d = 20  # Минимальное расстояние (в fwhm) между пиками
+    # h = 10  # Во сколько минимально раз пик должен быть выше медианы
+    # d = 20  # Минимальное расстояние (в fwhm) между пиками
 
     y, x = np.shape(neon)
     y = np.arange(y)
@@ -123,6 +124,8 @@ def corrections_from_file(corrections_file):
 
 def process_corrections(data, corr_obj):
     data_copy = data.copy()
+    if corr_obj is None:
+        return data_copy
     new_x = corr_obj['new_x']
     corr_map = corr_obj['data'][:, new_x]
     data_copy['data'] = np.array([interpolate_correction_map(x, corr_map)
