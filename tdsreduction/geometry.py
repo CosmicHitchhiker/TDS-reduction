@@ -21,8 +21,11 @@ def gauss_cont(x, s, x0, A, k, b):
 # FIXME: make rng wider, fit by gauss_cont
 def one_peak_fwhm(x, A, wl, spec, guess=1):
     rng = (wl > x - guess) & (wl < x + guess)
-    return 2.355 * np.abs(opt.curve_fit(gauss, wl[rng], spec[rng],
-                                        p0=[guess, x, A])[0][0])
+    try:
+        return 2.355 * np.abs(opt.curve_fit(gauss, wl[rng], spec[rng],
+                                            p0=[guess, x, A])[0][0])
+    except RuntimeError:
+        return 0
 
 
 # FIXME: fit by gauss_cont
@@ -43,7 +46,8 @@ def calc_fwhm(spec, wl=None, n=3, guess=10):
     def one_peak_fwhm_(x, A):
         return one_peak_fwhm(x, A, wl, spec, guess)
 
-    fwhm = np.average(list(map(one_peak_fwhm_, wl[peaks], amps)))
+    fwhm = np.array(list(map(one_peak_fwhm_, wl[peaks], amps)))
+    fwhm = np.average(fwhm[fwhm != 0])
     return fwhm
 
 
@@ -115,8 +119,9 @@ def fine_peak_position_i(row, peak, fwhm=10, x=None):
 
     amp = row[peak]
     b = np.median(row) / 2.
-    x = x[peak - 2 * fwhm:peak + 2 * fwhm]
-    y = row[peak - 2 * fwhm:peak + 2 * fwhm]
+    x_range = slice(max(0, peak - 2 * fwhm), min(len(x), peak + 2 * fwhm))
+    x = x[x_range]
+    y = row[x_range]
     try:
         p0 = [fwhm / 2.335, peak, amp, 0, b]
         bounds = ([fwhm * 0.3 / 2.335, peak - 1, amp * 0.7, -0.1, 0],
@@ -134,6 +139,7 @@ def refine_peaks_i(neon, peaks, fwhm=10):
     # Для каждого из пиков уточняем его позицию
     for i in tqdm(range(len(peaks))):
         peak = peaks[i]
+        # print(peak)
         peaks[i][0] = fine_peak_position_i(
             neon[int(peak[1])], peak[0], fwhm, x)
     return(peaks)
