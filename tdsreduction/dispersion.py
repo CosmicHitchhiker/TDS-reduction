@@ -80,7 +80,7 @@ def calc_subplot_dim(n):
 
 
 def get_dispersion_file(data, ref, approx_wl, bias_obj=None, dark_obj=None,
-                  cosm_obj=None, hdr=None):
+                        cosm_obj=None, hdr=None):
     data_copy = {'data': data.copy()}
     data_copy = bias.process_bias(data_copy, bias_obj)
     if cosm_obj:
@@ -220,7 +220,7 @@ def get_dispersion_file(data, ref, approx_wl, bias_obj=None, dark_obj=None,
     #     res = fits.PrimaryHDU(WL_map[:])
     res = fits.PrimaryHDU(WL_map[:])
     disp_obj = {'data': res.data}
-    neon_data = {'data': np.array([neon[:,::-1]])}
+    neon_data = {'data': np.array([neon[:, ::-1]])}
     # neon_data = data_copy
     neon_corrected = process_dispersion(neon_data, disp_obj)
 
@@ -310,10 +310,10 @@ def main(args=None):
     else:
         if_clear_cosmics = False
 
-    if pargs.GEOMETRY:
-        corr_obj = corrections.corrections_from_file(pargs.GEOMETRY)
-    else:
-        corr_obj = None
+    # if pargs.GEOMETRY:
+    #     corr_obj = corrections.corrections_from_file(pargs.GEOMETRY)
+    # else:
+    #     corr_obj = None
 
     file_names = pargs.filenames
     arc_names = []
