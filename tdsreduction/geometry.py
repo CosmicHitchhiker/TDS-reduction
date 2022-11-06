@@ -198,7 +198,8 @@ def gauss_fwhm(x0, amp, fwhm, coords):
 
 def get_peaks_h(pos, amp, h=10, d=4):
     FWHM = 2.7
-    refspec, refcoords = gauss_spectra(FWHM, pos, amp)
+    amps = amp * 100 / amp.max()
+    refspec, refcoords = gauss_spectra(FWHM, pos, amps)
     refspec += 1
     k = (refcoords.max() - refcoords.min()) / len(refcoords)
     FWHM_pix_ref = FWHM / k

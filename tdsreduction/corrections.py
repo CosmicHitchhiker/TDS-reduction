@@ -108,12 +108,20 @@ def get_corrections_file(data, bias_obj=None, dark_obj=None, cosm_obj=None):
     res = fits.PrimaryHDU(corr_map)
     res.header['GOODX1'] = np.min(new_x)
     res.header['GOODX2'] = np.max(new_x)
-    return res
+
+    corr_obj = corrections_from_file(res)
+    data = {'data': [neon]}
+    res2 = process_corrections(data, corr_obj)['data']
+    res2 = fits.ImageHDU(res2[0])
+    res2.name = 'neon'
+    return fits.HDUList([res, res2])
 
 
 def corrections_from_file(corrections_file):
     if isinstance(corrections_file, str):
         corrections_file = fits.open(corrections_file)[0]
+    elif isinstance(corrections_file, fits.HDUList):
+        corrections_file = corrections_file[0]
 
     x1 = corrections_file.header['GOODX1']
     x2 = corrections_file.header['GOODX2'] + 1

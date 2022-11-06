@@ -80,7 +80,7 @@ def bias_from_file(bias_file):
         bias_file = fits.open(bias_file)[0]
     bias = bias_file.data
     readnoise = bias_file.header['READNOIS']
-    errors = (np.ones(np.shape(bias))*readnoise)**2
+    errors = (np.ones(np.shape(bias)) * readnoise)**2
     return({'data': bias, 'errors': errors, 'readnoise': readnoise})
 
 
@@ -110,11 +110,14 @@ def process_bias(data, bias_obj=None):
 
     data_copy['data'] = data_copy['data'] - bias_obj['data']
 
-    if 'errors' not in data_copy:
-        return data_copy
+    if 'errors' in data_copy:
+        data_copy['errors'] = np.sqrt(data_copy['errors']**2
+                                      + bias_obj['errors']**2)
+    if 'mask' in data_copy:
+        data_copy['mask'] = data_copy['mask'] | (data_copy['data'] < 0)
+    if 'keys' in data_copy:
+        data_copy['keys']['READNOIS'] = bias_obj['readnoise']
 
-    if data_copy['errors'] is not None:
-        data_copy['errors'] = data_copy['errors'] + bias_obj['errors']
     return data_copy
 
 

@@ -115,8 +115,13 @@ def process_dark(data, dark=None, exposures=None):
     if dark is None:
         return data.copy()
     data_copy = data.copy()
-    data_res = [frame - dark(t) for frame, t in zip(data_copy['data'], exposures)]
+    if exposures is None:
+        exposures = [h['EXPOSURE'] for h in data_copy['headers']]
+    zip_de = zip(data_copy['data'], exposures)
+    data_res = np.array([frame - dark(t) for frame, t in zip_de])
     data_copy['data'] = data_res
+    if 'mask' in data_copy:
+        data_copy['mask'] = data_copy['mask'] | (data_copy['data'] < 0)
     return data_copy
 
 

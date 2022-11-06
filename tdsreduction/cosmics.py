@@ -7,7 +7,7 @@ from astropy.io import fits
 import bias
 
 
-def process_cosmics(data):
+def process_cosmics(data, ch_obj=True, bias_obj=None):
     """Clear csomic hints at given images
 
     Apply lacosmic method to every frame in given data.
@@ -23,16 +23,44 @@ def process_cosmics(data):
         Has the same structure as input data
     """
     data_copy = data.copy()
+    if not ch_obj:
+        return data_copy
+
     frames = data_copy['data']
 
-    def prepared_lacosmic(frame):
+    if 'mask' in data_copy:
+        msk = data_copy['mask']
+    else:
+        msk = [None] * len(data_copy['data'])
+
+    if 'errors' in data_copy:
+        err = data_copy['errors']
+    else:
+        err = [None] * len(data_copy['data'])
+
+    if bias_obj is not None:
+        bias = bias_obj['data']
+    else:
+        bias = None
+
+    readnois = 3.
+    if 'keys' in data_copy:
+        if 'READNOIS' in data_copy['keys']:
+            readnois = data_copy['keys']['READNOIS']
+
+    def prepared_lacosmic(frame, errors, mask):
         # norm = simple_norm(frame, 'log', percent=95)
         # plt.imshow(frame, origin='lower', norm=norm)
         # plt.show()
-        return lacosmic(frame, 1.7, 7, 3, effective_gain=1, readnoise=2.96)[0]
+        return lacosmic(frame, 1.7, 7, 3, effective_gain=1, readnoise=readnois,
+                        error=errors, mask=mask, background=bias)
 
-    resframes = np.array([prepared_lacosmic(x) for x in frames])
-    data_copy['data'] = resframes
+    resframes = [prepared_lacosmic(x, y, z) for x, y, z in
+                 zip(frames, err, msk)]
+    data_copy['data'] = np.array([x[0] for x in resframes])
+    if 'mask' in data_copy:
+        for i in range(len((data_copy['mask']))):
+            data_copy['mask'][i] = data_copy['mask'][i] | resframes[i][1]
     return data_copy
 
 

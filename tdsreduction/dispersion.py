@@ -79,6 +79,31 @@ def calc_subplot_dim(n):
     return m, m
 
 
+def plot_cross_identification(refspec, neon_data, theor_n, m_line, theor_mask,
+                              obs_mask, approx_line):
+    fig, ax = plt.subplots(2, 1)
+
+    print(m_line)
+    print(refspec[1][theor_n])
+
+    m_line_n = m_line.astype(int)
+    ax[0].plot(refspec[1], refspec[0])
+    ax[0].plot(refspec[1][theor_n], refspec[0][theor_n], 'o', ms=3)
+    ax[1].plot(neon_data[0, 225])
+    ax[1].plot(m_line_n, neon_data[0, 225][m_line_n], 'o', ms=3)
+
+    for i in range(len(approx_line[obs_mask])):
+        xA = refspec[1][theor_n][theor_mask][i]
+        yA = refspec[0][theor_n][theor_mask][i]
+        xB = m_line.astype(int)[obs_mask][i]
+        yB = neon_data[0, 225][m_line.astype(int)][obs_mask][i]
+        con = ConnectionPatch((xA, yA), (xB, yB), 'data', 'data', axesA=ax[0],
+                              axesB=ax[1], lw=0.5)
+        fig.add_artist(con)
+    plt.show()
+    return 0
+
+
 def get_dispersion_file(data, ref, approx_wl, bias_obj=None, dark_obj=None,
                         cosm_obj=None, hdr=None):
     data_copy = {'data': data.copy()}
@@ -123,32 +148,20 @@ def get_dispersion_file(data, ref, approx_wl, bias_obj=None, dark_obj=None,
     # k = np.polyfit(np.arange(len(approx_wl))[::], approx_wl, 3)
     # k[-1] += 20
     if hdr['DISP'] == 'R':
-        k2 = [7.41241676e-16, -3.20128023e-12, 5.79035035e-09, -3.04884902e-05,
-              9.28102343e-01, 5.62170023e+03]
+        # k2 = [7.41241676e-16, -3.20128023e-12, 5.79035035e-09, -3.04884902e-05,
+        #       9.28102343e-01, 5.62170023e+03]
+        k2 = [1.40027093e-14, -6.55250077e-11, 1.13645320e-07, -1.15330558e-04,
+              9.55553194e-01, 5.66927152e+03]
     if hdr['DISP'] == 'B':
         k2 = [6.14095880e-15, -3.71267430e-11, 1.01336659e-07, -1.75917785e-04,
               1.35359449e+00, 3.32310482e+03]
     approx_line = np.polyval(k2, m_line)
-    theor, theor_n = gm.get_peaks_h(ref[0], ref[1], )
+    theor, theor_n = gm.get_peaks_h(ref[0], ref[1])
     obs_mask, theor_mask = gm.find_correspond_peaks(approx_line,
                                                     theor, mask=True)
 
-    fig, ax = plt.subplots(2, 1)
-    m_line_n = m_line.astype(int)
-    ax[0].plot(refspec[1], refspec[0])
-    ax[0].plot(refspec[1][theor_n], refspec[0][theor_n], 'o', ms=3)
-    ax[1].plot(neon[225])
-    ax[1].plot(m_line_n, neon_data[0, 225][m_line_n], 'o', ms=3)
-
-    for i in range(len(approx_line[obs_mask])):
-        xA = refspec[1][theor_n][theor_mask][i]
-        yA = refspec[0][theor_n][theor_mask][i]
-        xB = m_line.astype(int)[obs_mask][i]
-        yB = neon_data[0, 225][m_line.astype(int)][obs_mask][i]
-        con = ConnectionPatch((xA, yA), (xB, yB), 'data', 'data', axesA=ax[0],
-                              axesB=ax[1], lw=0.5)
-        fig.add_artist(con)
-    plt.show()
+    plot_cross_identification(refspec, neon_data, theor_n, m_line, theor_mask,
+                              obs_mask, approx_line)
 
     peaks = gm.refine_peaks_i(neon, peaks, fwhm_pix)
 
@@ -192,14 +205,14 @@ def get_dispersion_file(data, ref, approx_wl, bias_obj=None, dark_obj=None,
         ax[j, i].axhline(0, linestyle='--', label=str(wl))
         ax[j, i].legend()
         i += 1
-        if i == dim_subpl[0]:
+        if i == dim_subpl[1]:
             i = 0
             j += 1
     fig.show()
     print()
     # print(err_fit)
     print(np.mean(err_fit))
-    print(np.mean(err_fit) * 3e+5 / 5500.)
+    print(np.mean(err_fit) * 3e+5 / 5500., 'km/s')
 
     plt.figure()
     plt.ylim(-0.12, 0.12)
@@ -242,6 +255,8 @@ def get_dispersion_file(data, ref, approx_wl, bias_obj=None, dark_obj=None,
     neon_res.header['CRVAL1'] = crval
     neon_res.header['CDELT1'] = crdelt
     neon_res.header['CTYPE1'] = 'WAVE'
+    neon_res.header['CRDER1'] = np.mean(err_fit)
+
     return res, neon_res
 
 
@@ -264,9 +279,20 @@ def process_dispersion(data, disp_obj):
 
     if wl2 > 7000:
         data_copy['data'] = data_copy['data'][:, :, ::-1]
+        if 'errors' in data_copy:
+            data_copy['errors'] = data_copy['errors'][:, :, ::-1]
+        if 'mask' in data_copy:
+            data_copy['mask'] = data_copy['mask'][:, :, ::-1]
 
     data_copy['data'] = np.array([coord_to_lam(x, wlmap, wl)
                                   for x in data_copy['data']])
+    if 'mask' in data_copy:
+        data_copy['mask'] = np.array([coord_to_lam(x, wlmap, wl)
+                                      for x in data_copy['mask']])
+        data_copy['mask'] = data_copy['mask'].astype(bool)
+    if 'errors' in data_copy:
+        data_copy['errors'] = np.array([coord_to_lam(x, wlmap, wl)
+                                        for x in data_copy['errors']])
     # if wl1 < wl2:
     #     data_copy['data'] = np.array([coord_to_lam(x, wlmap, wl)
     #                                   for x in data_copy['data']])
@@ -276,6 +302,11 @@ def process_dispersion(data, disp_obj):
     #     data_copy['data'] = np.array([coord_to_lam(x, wlmap, wl)
     #                                   for x in data_copy['data']])
     data_copy['wl'] = wl
+    if 'keys' in data_copy:
+        data_copy['keys']['CRPIX1'] = 1
+        data_copy['keys']['CRVAL1'] = round(wl[0], 5)
+        data_copy['keys']['CDELT1'] = round(wl[1] - wl[0], 5)
+        data_copy['keys']['CTYPE1'] = 'WAVE'
     return data_copy
 
 

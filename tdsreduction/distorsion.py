@@ -72,6 +72,15 @@ def process_distorsion(data, corr_obj):
     corrected = [(corrections.interpolate_correction_map(x.T, corr_map)).T
                  for x in data_copy['data']]
     data_copy['data'] = np.array(corrected)
+
+    if 'errors' in data_copy:
+        errors = [(corrections.interpolate_correction_map(x.T, corr_map)).T
+                  for x in data_copy['errors']]
+        data_copy['errors'] = np.array(errors)
+    if 'mask' in data_copy:
+        mask = [(corrections.interpolate_correction_map(x.T, corr_map)).T
+                for x in data_copy['mask']]
+        data_copy['mask'] = np.array(mask).astype('bool')
     return data_copy
 
 
