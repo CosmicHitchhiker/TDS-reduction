@@ -6,10 +6,27 @@ from matplotlib import pyplot as plt
 import bias
 import dark
 import cosmics
-import corrections
+import flat
 from astropy.io import fits
 import argparse
 from matplotlib.patches import ConnectionPatch
+from genfuncs import open_fits_array_data
+
+
+def norm_vector(vec):
+    return vec / np.linalg.norm(vec)
+
+
+def correlation(vec1, vec2):
+    return(np.arccos(np.sum(vec1 * vec2)))
+
+def Qfunc(k, refspec, obsspec):
+    x = np.arange(len(obsspec))
+    x_approx = np.polyval(k, x)
+    vals = np.interpolate(x_approx, refspec[1], refspec[0])
+    vals = norm_vector(vals)
+    spec = norm_vector(obsspec)
+    return correlation(vals, spec)
 
 
 def get_peaks_clust(neon, h=10, d=5, k=50, eps=70, clust=10):
@@ -64,6 +81,55 @@ def get_peaks_clust_setup(neon):
     return peaks, n_lines, fwhm
 
 
+def get_approx(neon, refspec, hdr, approx_wl=None):
+
+    if approx_wl:
+        k = np.polyfit(np.arange(len(approx_wl))[::], approx_wl, 3)
+    else:
+        if hdr['DISP'] == 'R':
+            k = [7.41241676e-16, -3.20128023e-12, 5.79035035e-09,
+                 -3.04884902e-05, 9.28102343e-01, 5.62170023e+03]
+            # k = [1.40027093e-14, -6.55250077e-11, 1.13645320e-07,
+            #      -1.15330558e-04, 9.55553194e-01, 5.66927152e+03]
+        elif hdr['DISP'] == 'B':
+            k = [6.14095880e-15, -3.71267430e-11, 1.01336659e-07,
+                 -1.75917785e-04, 1.35359449e+00, 3.32310482e+03]
+        else:
+            k = [-1.5e-04, 1, 4.5e+03]
+
+    need_to_change = 'Yes'
+    x = np.arange(len(neon[255]))
+    while need_to_change != '':
+        approx_x = np.polyval(k, x)
+        fig, ax = plt.subplots(2, 1)
+        x_range = (min(np.min(approx_x), np.min(refspec[1])),
+                   max(np.max(approx_x), np.max(refspec[1])))
+        ax[0].plot(refspec[1], refspec[0])
+        ax[0].set_title('Reference')
+        ax[0].set_xlim(*x_range)
+        ax[1].plot(approx_x, neon[225])
+        ax[1].set_title('Observed')
+        ax[1].set_xlim(*x_range)
+        plt.show()
+        params = argparse.ArgumentParser(exit_on_error=False)
+        params.add_argument('-k0', type=float, default=k[-1])
+        params.add_argument('-k1', type=float, default=k[-2])
+        params.add_argument('-k2', type=float, default=k[-3])
+        params.add_argument('-k3', type=float, default=k[-4])
+        params.add_argument('-k', default=k, nargs='+')
+        parags = params.parse_args('')
+        print(parags)
+        need_to_change = input("Change any parameters?(leave blank if No)")
+        if need_to_change:
+            parags = params.parse_args(need_to_change.split())
+            if k == parags.k:
+                k = [parags.k3, parags.k2, parags.k1, parags.k0]
+            else:
+                k = parags.g
+
+    return k
+
+
 def coord_to_lam(image, wlmap, wl):
     if wl is None:
         wl = np.linspace(wlmap[:, 0].max(), wlmap[:, -1].min(), len(wlmap[0]))
@@ -104,10 +170,11 @@ def plot_cross_identification(refspec, neon_data, theor_n, m_line, theor_mask,
     return 0
 
 
-def get_dispersion_file(data, ref, approx_wl, bias_obj=None, dark_obj=None,
-                        cosm_obj=None, hdr=None):
+def get_dispersion_file(data, ref, approx_wl=None, bias_obj=None, dark_obj=None,
+                        flat_obj=None, cosm_obj=None, hdr=None):
     data_copy = {'data': data.copy()}
     data_copy = bias.process_bias(data_copy, bias_obj)
+    data_copy = flat.process_flat(data_copy, flat_obj)
     if cosm_obj:
         data_copy = cosmics.process_cosmics(data_copy)
 
@@ -131,31 +198,13 @@ def get_dispersion_file(data, ref, approx_wl, bias_obj=None, dark_obj=None,
 
     n_ordered = n_ordered[np.argsort(m_line)]
     m_line = np.sort(m_line)
-    plt.figure()
-    plt.imshow(neon)
-    plt.plot(m_line, np.ones(len(m_line)) * 225, 'ro')
-    plt.show()
 
     refspec = gm.gauss_spectra(fwhm_pix, ref[0], ref[1], bias=0,
                                step=1, rng=None)
-    fig, ax = plt.subplots(2, 1)
-    ax[0].plot(refspec[1], refspec[0])
-    ax[0].set_title('Reference')
-    ax[1].plot(neon[225])
-    ax[1].set_title('Observed')
-    plt.show()
 
-    # k = np.polyfit(np.arange(len(approx_wl))[::], approx_wl, 3)
-    # k[-1] += 20
-    if hdr['DISP'] == 'R':
-        # k2 = [7.41241676e-16, -3.20128023e-12, 5.79035035e-09, -3.04884902e-05,
-        #       9.28102343e-01, 5.62170023e+03]
-        k2 = [1.40027093e-14, -6.55250077e-11, 1.13645320e-07, -1.15330558e-04,
-              9.55553194e-01, 5.66927152e+03]
-    if hdr['DISP'] == 'B':
-        k2 = [6.14095880e-15, -3.71267430e-11, 1.01336659e-07, -1.75917785e-04,
-              1.35359449e+00, 3.32310482e+03]
-    approx_line = np.polyval(k2, m_line)
+    k = get_approx(neon, refspec, hdr, approx_wl)
+
+    approx_line = np.polyval(k, m_line)
     theor, theor_n = gm.get_peaks_h(ref[0], ref[1])
     obs_mask, theor_mask = gm.find_correspond_peaks(approx_line,
                                                     theor, mask=True)
@@ -246,9 +295,10 @@ def get_dispersion_file(data, ref, approx_wl, bias_obj=None, dark_obj=None,
     plt.show()
 
     if hdr is not None:
-        neon_res = fits.PrimaryHDU(neon_corrected['data'][0], header=hdr)
+        neon_res = fits.ImageHDU(neon_corrected['data'][0], header=hdr,
+                                 name='neon')
     else:
-        neon_res = fits.PrimaryHDU(neon_corrected['data'][0])
+        neon_res = fits.ImageHDU(neon_corrected['data'][0], name='neon')
     neon_res.header['CRPIX1'] = 1
     crval = round(neon_corrected['wl'][0], 3)
     crdelt = round((neon_corrected['wl'][1] - neon_corrected['wl'][0]), 3)
@@ -257,13 +307,17 @@ def get_dispersion_file(data, ref, approx_wl, bias_obj=None, dark_obj=None,
     neon_res.header['CTYPE1'] = 'WAVE'
     neon_res.header['CRDER1'] = np.mean(err_fit)
 
-    return res, neon_res
+    hdul = fits.HDUList([res, neon_res])
+
+    return hdul
 
 
 def dispersion_from_file(disp_file):
     if isinstance(disp_file, str):
-        disp_file = fits.open(disp_file)[0]
-    res = {'data': disp_file.data}
+        disp_file = fits.open(disp_file)
+    res = {'data': disp_file[0].data}
+    if 'neon' in disp_file:
+        res['CRDER1'] = disp_file['neon']['CRDER1']
     return res
 
 
@@ -293,20 +347,14 @@ def process_dispersion(data, disp_obj):
     if 'errors' in data_copy:
         data_copy['errors'] = np.array([coord_to_lam(x, wlmap, wl)
                                         for x in data_copy['errors']])
-    # if wl1 < wl2:
-    #     data_copy['data'] = np.array([coord_to_lam(x, wlmap, wl)
-    #                                   for x in data_copy['data']])
-    # else:
-    #     wl = wl[::-1]
-    #     data_copy['data'] = data_copy['data'][:, :, ::-1]
-    #     data_copy['data'] = np.array([coord_to_lam(x, wlmap, wl)
-    #                                   for x in data_copy['data']])
     data_copy['wl'] = wl
     if 'keys' in data_copy:
         data_copy['keys']['CRPIX1'] = 1
         data_copy['keys']['CRVAL1'] = round(wl[0], 5)
         data_copy['keys']['CDELT1'] = round(wl[1] - wl[0], 5)
         data_copy['keys']['CTYPE1'] = 'WAVE'
+        if 'CRDER1' in disp_obj:
+            data_copy['keys']['CRDER1'] = disp_obj['CRDER1']
     return data_copy
 
 
@@ -318,12 +366,14 @@ def main(args=None):
     parser.add_argument('-d', '--dir', help="directory with input files")
     parser.add_argument('-o', '--out', default='../data/disp_map.fits',
                         help='output file')
-    parser.add_argument('-G', '--GEOMETRY', help="file with correction map")
+    parser.add_argument('-X', '--GEOMETRY', help="file with correction map")
     parser.add_argument('-B', '--BIAS', help="bias frame (fits) to substract")
     parser.add_argument('-D', '--DARK',
                         help="prepared fits-file with dark frames")
     parser.add_argument('-C', '--COSMICS', action='store_true',
                         help="set this argument to clear cosmic hints")
+    parser.add_argument('-F', '--FLAT',
+                        help="prepared fits-file with flat frame")
     pargs = parser.parse_args(args[1:])
 
     if pargs.BIAS:
@@ -340,6 +390,11 @@ def main(args=None):
         if_clear_cosmics = True
     else:
         if_clear_cosmics = False
+
+    if pargs.FLAT:
+        flat_obj = flat.flat_from_file(pargs.FLAT)
+    else:
+        flat_obj = None
 
     # if pargs.GEOMETRY:
     #     corr_obj = corrections.corrections_from_file(pargs.GEOMETRY)
@@ -368,23 +423,23 @@ def main(args=None):
         arc_names = [pargs.dir + x for x in arc_names]
     arc_files, headers = open_fits_array_data(arc_names, header=True)
 
-    hm = fits.open(approx_name)
-    approx_wl = hm['wave'].data[250]
+    if approx_name is not None:
+        hm = fits.getdata(approx_name)[0]
+        approx_wl = hm[int(len(hm) / 2)]
+    else:
+        approx_wl = None
 
     ref = np.loadtxt(ref_name).T
     ref[1] = ref[1][np.argsort(ref[0])]
     ref[0] = np.sort(ref[0])
 
-    disp_file, neon_file = get_dispersion_file(arc_files, ref, approx_wl,
-                                               bias_obj, dark_obj,
-                                               if_clear_cosmics, headers[0])
+    disp_file = get_dispersion_file(arc_files, ref, approx_wl,
+                                    bias_obj, dark_obj, flat_obj,
+                                    if_clear_cosmics, headers[0])
     disp_file.writeto(pargs.out, overwrite=True)
-    neon_name = '.'.join((pargs.out).split('.')[:-1]) + '_neon.fits'
-    neon_file.writeto(neon_name, overwrite=True)
     return(0)
 
 
 if __name__ == '__main__':
     import sys
-    from genfuncs import open_fits_array_data
     sys.exit(main(sys.argv))

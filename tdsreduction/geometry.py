@@ -85,6 +85,13 @@ def find_lines_cluster(peaks, y=None, verbose=False, k=50, eps=70, clust=10):
 
     vectors[:, 0] /= k
 
+    # убираем короткие линии
+    for n_line in set(y_pred):
+        line_y = vectors[:, 1][y_pred == n_line]
+        dy = line_y.max() - line_y.min()
+        if (dy < (y.max() - y.min()) / 2):
+            y_pred[y_pred==n_line] = -1
+
     if verbose:
         plt.figure()
         plt.clf()
@@ -100,12 +107,7 @@ def find_lines_cluster(peaks, y=None, verbose=False, k=50, eps=70, clust=10):
 
     mask = (y_pred >= 0)  # убираем не классифицированные точки
 
-    # убираем короткие линии
-    for n_line in set(y_pred):
-        line_y = vectors[:, 1][y_pred == n_line]
-        dy = line_y.max() - line_y.min()
-        if (dy < (y.max() - y.min()) / 2):
-            mask = (mask & (y_pred != n_line))
+    
 
     return(vectors[mask], y_pred[mask])
 
@@ -271,3 +273,13 @@ def polyfit2d(x, y, f, deg=[2, 2]):
     vandermond = pln.polyvander2d(x, y, deg)
     k = np.linalg.lstsq(vandermond, f)
     return(k)
+
+
+def sort_labels(clustering, vectors):
+    lab = clustering.labels_.astype('int')
+    x = vectors[:, 0]
+    x_med = []
+    enum_lab = set(lab.tolist()) - {-1}
+    enum_lab = list(enum_lab)
+    for l in enum_lab:
+        x_med.append(np.median(x[lab == l]))
