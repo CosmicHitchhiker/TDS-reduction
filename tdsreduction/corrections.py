@@ -48,7 +48,7 @@ def get_correction_map(neon, verbose=False, ref='mean', use_clust=True, h=10,
     peaks, n_lines = gm.find_lines_cluster(peaks, y, verbose=True)
     # В каждом элементе peaks 1-я координата - х, 2 - у
     # в n_lines для каждой точки записано к какой она линии относится
-    peaks = gm.refine_peaks_i(neon, peaks, fwhm)
+    # peaks = gm.refine_peaks_i(neon, peaks, fwhm)
 
     # Нумеруем каждую найденную линию неона (делаем список "номеров")
     enum_lines = set(n_lines.tolist())
