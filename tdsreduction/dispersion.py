@@ -20,6 +20,7 @@ def norm_vector(vec):
 def correlation(vec1, vec2):
     return(np.arccos(np.sum(vec1 * vec2)))
 
+
 def Qfunc(k, refspec, obsspec):
     x = np.arange(len(obsspec))
     x_approx = np.polyval(k, x)
@@ -81,53 +82,29 @@ def get_peaks_clust_setup(neon):
     return peaks, n_lines, fwhm
 
 
-def get_approx(neon, refspec, hdr, approx_wl=None):
+def get_approx(neon_line, refspec, hdr, approx_wl=None):
+    fig, ax = plt.subplots(2, 1)
+    ax[0].plot(refspec[1], refspec[0])
+    ax[0].set_title('Reference')
+    ax[1].plot(neon_line)
+    ax[1].set_title('Observed')
+    plt.ion()
+    plt.show()
+    obs_points = input("Observed points (space separated):")
+    obs_points = [float(x) for x in obs_points.split()]
+    ref_points = input("Reference points (space separated):")
+    ref_points = [float(x) for x in ref_points.split()]
 
-    if approx_wl:
-        k = np.polyfit(np.arange(len(approx_wl))[::], approx_wl, 3)
-    else:
-        if hdr['DISP'] == 'R':
-            k = [7.41241676e-16, -3.20128023e-12, 5.79035035e-09,
-                 -3.04884902e-05, 9.28102343e-01, 5.62170023e+03]
-            # k = [1.40027093e-14, -6.55250077e-11, 1.13645320e-07,
-            #      -1.15330558e-04, 9.55553194e-01, 5.66927152e+03]
-        elif hdr['DISP'] == 'B':
-            k = [6.14095880e-15, -3.71267430e-11, 1.01336659e-07,
-                 -1.75917785e-04, 1.35359449e+00, 3.32310482e+03]
-        else:
-            k = [-1.5e-04, 1, 4.5e+03]
-
-    need_to_change = 'Yes'
-    x = np.arange(len(neon[255]))
-    while need_to_change != '':
-        approx_x = np.polyval(k, x)
-        fig, ax = plt.subplots(2, 1)
-        x_range = (min(np.min(approx_x), np.min(refspec[1])),
-                   max(np.max(approx_x), np.max(refspec[1])))
-        ax[0].plot(refspec[1], refspec[0])
-        ax[0].set_title('Reference')
-        ax[0].set_xlim(*x_range)
-        ax[1].plot(approx_x, neon[225])
-        ax[1].set_title('Observed')
-        ax[1].set_xlim(*x_range)
-        plt.show()
-        params = argparse.ArgumentParser(exit_on_error=False)
-        params.add_argument('-k0', type=float, default=k[-1])
-        params.add_argument('-k1', type=float, default=k[-2])
-        params.add_argument('-k2', type=float, default=k[-3])
-        params.add_argument('-k3', type=float, default=k[-4])
-        params.add_argument('-k', default=k, nargs='+')
-        parags = params.parse_args('')
-        print(parags)
-        need_to_change = input("Change any parameters?(leave blank if No)")
-        if need_to_change:
-            parags = params.parse_args(need_to_change.split())
-            if k == parags.k:
-                k = [parags.k3, parags.k2, parags.k1, parags.k0]
-            else:
-                k = parags.g
-
+    k = np.polyfit(obs_points, ref_points, 3)
+    plt.ioff()
     return k
+
+
+def del_one_element(arr):
+    res = []
+    for i in range(len(arr)):
+        res.append(np.delete(arr, i))
+    return res
 
 
 def coord_to_lam(image, wlmap, wl):
@@ -185,27 +162,33 @@ def get_dispersion_file(data, ref, approx_wl=None, bias_obj=None, dark_obj=None,
     neon = np.sum(neon_data, axis=0)
 
     peaks, n_lines, fwhm_pix = get_peaks_clust_setup(neon)
+    pint = peaks.astype(int)
+    hs = neon[pint[:, 1], pint[:, 0]]
 
     m_line = []
+    h_line = []
 
     n_ordered = np.array(sorted(set(n_lines)))
 
     for n in n_ordered:
         # ПОДУМАТЬ МОЖНО ЛИ МЕДИАНУ
         m_line.append(np.median(peaks[n_lines == n][:, 0]))
+        h_line.append(np.median(hs[n_lines == n]))
 
     m_line = np.array(m_line)
+    h_line = np.array(h_line)
 
     n_ordered = n_ordered[np.argsort(m_line)]
+    h_line = h_line[np.argsort(m_line)]
     m_line = np.sort(m_line)
 
     refspec = gm.gauss_spectra(fwhm_pix, ref[0], ref[1], bias=0,
                                step=1, rng=None)
+    theor, theor_n, theor_h = gm.get_peaks_h(ref[0], ref[1], return_h=True)
 
-    k = get_approx(neon, refspec, hdr, approx_wl)
+    k = get_approx(neon[255], refspec, hdr, approx_wl)
 
     approx_line = np.polyval(k, m_line)
-    theor, theor_n = gm.get_peaks_h(ref[0], ref[1])
     obs_mask, theor_mask = gm.find_correspond_peaks(approx_line,
                                                     theor, mask=True)
 
@@ -317,7 +300,7 @@ def dispersion_from_file(disp_file):
         disp_file = fits.open(disp_file)
     res = {'data': disp_file[0].data}
     if 'neon' in disp_file:
-        res['CRDER1'] = disp_file['neon']['CRDER1']
+        res['CRDER1'] = disp_file['neon'].header['CRDER1']
     return res
 
 

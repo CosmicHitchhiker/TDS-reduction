@@ -198,7 +198,7 @@ def gauss_fwhm(x0, amp, fwhm, coords):
     return amp * np.exp(-0.5 * (coords - x0)**2 / (sigm**2))
 
 
-def get_peaks_h(pos, amp, h=10, d=4):
+def get_peaks_h(pos, amp, h=10, d=4, return_h=False):
     FWHM = 2.7
     amps = amp * 100 / amp.max()
     refspec, refcoords = gauss_spectra(FWHM, pos, amps)
@@ -208,6 +208,9 @@ def get_peaks_h(pos, amp, h=10, d=4):
     peaks_ref_n = find_peaks(refspec, fwhm=FWHM_pix_ref, h=h, d=d)
     peaks_ref = refcoords[peaks_ref_n]
     peaks_ref_theor = find_correspond_peaks(pos, peaks_ref)[0]
+    if return_h:
+        peaks_ref_h = refspec[peaks_ref_n]
+        return(peaks_ref_theor, peaks_ref_n, peaks_ref_h)
     return(peaks_ref_theor, peaks_ref_n)
 
 
