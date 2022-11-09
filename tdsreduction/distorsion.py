@@ -8,7 +8,10 @@ import dark
 import cosmics
 import corrections
 import dispersion
+import flat
 from astropy.io import fits
+import argparse
+from genfuncs import open_fits_array_data
 
 
 def get_distorsion_map(data, verbose=True):
@@ -36,10 +39,11 @@ def get_distorsion_map(data, verbose=True):
     return peaks
 
 
-def get_distorsion_file(data, bias_obj=None, dark_obj=None, cosm_obj=None,
+def get_distorsion_file(data, bias_obj=None, dark_obj=None, flat_obj=None, cosm_obj=None,
                         wl_obj=None):
     data_copy = {'data': data.copy()}
     data_copy = bias.process_bias(data_copy, bias_obj)
+    data_copy = flat.process_flat(data_copy, flat_obj)
     if cosm_obj:
         data_copy = cosmics.process_cosmics(data_copy)
     data_copy = dispersion.process_dispersion(data_copy, wl_obj)
@@ -98,6 +102,8 @@ def main(args=None):
                         help="set this argument to clear cosmic hints")
     parser.add_argument('-W', '--WAVELENGTHS',
                         help="wavelength calibration map")
+    parser.add_argument('-F', '--FLAT',
+                        help="prepared fits-file with flat frame")
     pargs = parser.parse_args(args[1:])
 
     if pargs.BIAS:
@@ -120,13 +126,18 @@ def main(args=None):
     else:
         wl_obj = None
 
+    if pargs.FLAT:
+        flat_obj = flat.flat_from_file(pargs.FLAT)
+    else:
+        flat_obj = None
+
     stars_names = pargs.filenames
     if pargs.dir:
         stars_names = [pargs.dir + x for x in stars_names]
     stars_files, headers = open_fits_array_data(stars_names, header=True)
 
     corr_file = get_distorsion_file(stars_files, bias_obj, dark_obj,
-                                    if_clear_cosmics, wl_obj)
+                                    flat_obj, if_clear_cosmics, wl_obj)
     dist_obj = distorsion_from_file(corr_file)
     data = {'data': stars_files}
     res = process_distorsion(data, dist_obj)
@@ -138,6 +149,4 @@ def main(args=None):
 
 if __name__ == '__main__':
     import sys
-    from genfuncs import open_fits_array_data
-    import argparse
     sys.exit(main(sys.argv))

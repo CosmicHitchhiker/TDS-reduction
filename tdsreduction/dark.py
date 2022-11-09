@@ -5,6 +5,8 @@ import numpy as np
 import bias
 from scipy.interpolate import interp1d
 from astropy.io import fits
+import argparse
+from genfuncs import open_fits_array_data
 
 
 def get_dark_interp(darks):
@@ -60,7 +62,7 @@ def get_dark_file(data, headers, bias_obj=None):
         darks_t = data[times == dark_exp]
         # bias.get_bias is sigma-clipped mean
         dark, _ = bias.get_bias(darks_t)
-        pre_dark_obj = {'data': dark, 'errors': None}
+        pre_dark_obj = {'data': dark}
         dark = (bias.process_bias(pre_dark_obj, bias_obj))['data']
         dark[dark < 0] = 0
 
@@ -155,6 +157,4 @@ def main(args=None):
 
 if __name__ == '__main__':
     import sys
-    from genfuncs import open_fits_array_data
-    import argparse
     sys.exit(main(sys.argv))

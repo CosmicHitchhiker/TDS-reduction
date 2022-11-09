@@ -107,52 +107,93 @@ def pipeline(frames, headers=None, bias_obj=None, flat_obj=None, dark_obj=None,
     return result
 
 
-def read_yaml(yaml_name):
+def read_yaml_obj(yaml_name):
     file = open(yaml_name, 'r')
     config = yaml.load(file, Loader=yaml.SafeLoader)
     file.close()
 
-    if 'output' in config:
-        outname = config['output']
-    else:
-        outname = None
-
-    if 'dir' in config:
-        dir = config['dir']
-    else:
-        dir = ''
-
-    file_names = [dir + x for x in config['filenames']]
-
-    if 'cal' in config:
-        cal = config['cal']
-    else:
-        cal = ''
+    if 'object' not in config:
+        return None
 
     bias_obj = dark_obj = flat_obj = ch_obj = xcorr_obj = ycorr_obj = \
-        wl_obj = sky_obj = None
+        wl_obj = sky_obj = file_names = outname = None
 
-    if 'bias' in config:
-        bias_obj = bias.bias_from_file(cal + config['bias'])
-    if 'dark' in config:
-        dark_obj = dark.dark_from_file(cal + config['dark'])
-    if 'flat' in config:
-        flat_obj = flat.flat_from_file(cal + config['flat'])
-    if 'cosmics' in config:
-        ch_obj = config['cosmics']
-    if 'geometry' in config:
-        xcorr_obj = corrections.corrections_from_file(cal + config['geometry'])
-    if 'distorsion' in config:
-        ycorr_obj = distorsion.distorsion_from_file(cal + config['distorsion'])
-    if 'wavelength' in config:
-        wl_obj = dispersion.dispersion_from_file(cal + config['wavelength'])
-    if 'sky' in config:
-        sky_obj = config['sky']
-        if 'skyflat' in sky_obj:
-            sky_obj['skyflat'] = cal + sky_obj['skyflat']
+    if 'output' in config['object']:
+        outname = config['object']['output']
+
+    file_names = config['object']['filenames']
+
+    if 'additional' in config['object']:
+        adds = config['object']['additional']
+    else:
+        adds = []
+
+    if 'B' in adds:
+        bias_obj = bias.bias_from_file(adds['B'])
+    if 'D' in adds:
+        dark_obj = dark.dark_from_file(adds['D'])
+    if 'F' in adds:
+        flat_obj = flat.flat_from_file(adds['F'])
+    if 'C' in adds:
+        ch_obj = adds['C']
+    if 'X' in adds:
+        xcorr_obj = corrections.corrections_from_file(adds['X'])
+    if 'Y' in adds:
+        ycorr_obj = distorsion.distorsion_from_file(adds['Y'])
+    if 'W' in adds:
+        wl_obj = dispersion.dispersion_from_file(adds['W'])
+    # if 'sky' in config:
+    #     sky_obj = config['sky']
+    #     if 'skyflat' in sky_obj:
+    #         sky_obj['skyflat'] = cal + sky_obj['skyflat']
 
     return(file_names, bias_obj, dark_obj, flat_obj, ch_obj, xcorr_obj,
            ycorr_obj, wl_obj, sky_obj, outname)
+
+
+def prepare_configs(yaml_name):
+    file = open(yaml_name, 'r')
+    config = yaml.load(file, Loader=yaml.SafeLoader)
+    file.close()
+
+    seq_calibs = ['bias', 'dark', 'corr', 'flat', 'disp', 'dist']
+    process = dict()
+
+    for calib in seq_calibs:
+        if calib in config:
+            if 'rawfiles' in config[calib]:
+                argstring = [calib]
+                argstring.extend(config[calib]['rawfiles'])
+                for k in config[calib]['additional'].keys():
+                    argstring.append('-' + k)
+                    if k != 'C':
+                        argstring.append(config[calib]['additional'][k])
+                argstring.append('-' + 'o')
+                argstring.append(config[calib]['calibration'])
+                process[calib] = argstring
+
+    if 'bias' in process:
+        bias.main(process['bias'])
+        print("BIAS CALIB")
+    if 'dark' in process:
+        dark.main(process['dark'])
+        print("DARK CALIB")
+    if 'corr' in process:
+        corrections.main(process['corr'])
+        print("GEOMETRY CALIB")
+    if 'flat' in process:
+        flat.main(process['flat'])
+        print("FLAT CALIB")
+    if 'disp' in process:
+        dispersion.main(process['disp'])
+        print("DISPERSION CALIB")
+    if 'dist' in process:
+        distorsion.main(process['dist'])
+        print("DISTORSION CALIB")
+    return ('object' in config)
+
+
+
 
 
 def main(args=None):
@@ -192,9 +233,14 @@ def main(args=None):
         wl_obj = sky_obj = outname = None
 
     first_arg = pargs.filenames[0]
-    if first_arg.split('.')[-1] == 'yaml':
-        file_names, bias_obj, dark_obj, flat_obj, ch_obj, xcorr_obj, \
-            ycorr_obj, wl_obj, sky_obj, ountame = read_yaml(first_arg)
+    farg_ext = first_arg.split('.')[-1]
+    if farg_ext == 'yaml' or farg_ext == 'yml':
+        if_obj = prepare_configs(first_arg)
+        if if_obj:
+            file_names, bias_obj, dark_obj, flat_obj, ch_obj, xcorr_obj, \
+                ycorr_obj, wl_obj, sky_obj, outname = read_yaml_obj(first_arg)
+        else:
+            return(0)
     else:
         file_names = pargs.filenames
         file_names = [pargs.dir + fn for fn in file_names]
@@ -233,42 +279,8 @@ def main(args=None):
 
     result = pipeline(data, headers, bias_obj, flat_obj, dark_obj, ch_obj,
                       xcorr_obj, ycorr_obj, wl_obj, sky_obj)
+    print('writeto ', outname)
     result.writeto(outname, overwrite=True)
-    # file_names = pargs.filenames
-    # arc_names = []
-    # ref_name = None
-    # approx_name = None
-    # for name in file_names:
-    #     ending = name.split('.')[-1]
-    #     if ending == "fit":
-    #         approx_name = name
-    #     elif ending == "txt":
-    #         ref_name = name
-    #     elif ending == "fits":
-    #         arc_names.append(name)
-
-    # print()
-    # print("Approx ", approx_name)
-    # print("Ref ", ref_name)
-    # print("Arc ", arc_names)
-
-    # if pargs.dir:
-    #     arc_names = [pargs.dir + x for x in arc_names]
-    # arc_files, headers = open_fits_array_data(arc_names, header=True)
-
-    # hm = fits.open(approx_name)
-    # approx_wl = hm['wave'].data[250]
-
-    # ref = np.loadtxt(ref_name).T
-    # ref[1] = ref[1][np.argsort(ref[0])]
-    # ref[0] = np.sort(ref[0])
-
-    # disp_file, neon_file = get_dispersion_file(arc_files, ref, approx_wl,
-    #                                            bias_obj, dark_obj,
-    #                                            if_clear_cosmics, headers[0])
-    # disp_file.writeto(pargs.out, overwrite=True)
-    # neon_name = '.'.join((pargs.out).split('.')[:-1]) + '_neon.fits'
-    # neon_file.writeto(neon_name, overwrite=True)
     return(0)
 
 

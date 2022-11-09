@@ -7,6 +7,8 @@ import bias
 import dark
 import cosmics
 from astropy.io import fits
+import argparse
+from genfuncs import open_fits_array_data
 
 
 def get_correction_map(neon, verbose=False, ref='mean', use_clust=True, h=10,
@@ -188,6 +190,4 @@ def main(args=None):
 
 if __name__ == '__main__':
     import sys
-    from genfuncs import open_fits_array_data
-    import argparse
     sys.exit(main(sys.argv))

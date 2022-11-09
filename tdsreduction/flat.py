@@ -6,6 +6,8 @@ import dark
 import corrections
 from astropy.io import fits
 import scipy.interpolate as interp
+import argparse
+from genfuncs import open_fits_array_data
 
 
 def get_flat_file(flat_frames, flat_headers,
@@ -68,7 +70,7 @@ def main(args=None):
     parser.add_argument('-d', '--dir', help="directory with input files")
     parser.add_argument('-o', '--out', default='../data/flat.fits',
                         help='output file')
-    parser.add_argument('-G', '--GEOMETRY', help="file with correction map")
+    parser.add_argument('-X', '--GEOMETRY', help="file with correction map")
     parser.add_argument('-B', '--BIAS', help="bias frame (fits) to substract")
     parser.add_argument('-D', '--DARK',
                         help="prepared fits-file with dark frames")
@@ -102,6 +104,4 @@ def main(args=None):
 
 if __name__ == '__main__':
     import sys
-    from genfuncs import open_fits_array_data
-    import argparse
     sys.exit(main(sys.argv))

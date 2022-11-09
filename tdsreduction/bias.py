@@ -4,6 +4,8 @@
 import numpy as np
 import astropy.stats as astats
 from astropy.io import fits
+import argparse
+from genfuncs import open_fits_array_data
 
 
 def get_bias(bias, gain=1):
@@ -143,6 +145,4 @@ def main(args=None):
 
 if __name__ == '__main__':
     import sys
-    from genfuncs import open_fits_array_data
-    import argparse
     sys.exit(main(sys.argv))
