@@ -1,6 +1,8 @@
 #! /usr/bin/python3
 
 import numpy as np
+from genfuncs import open_fits_array_data
+from astropy.io import fits
 
 
 def extract_sky(data, sky):
@@ -22,27 +24,34 @@ def extract_sky(data, sky):
     data : 2D ndarray
         Image of object with sky spectrum substracted
     '''
+    data_copy = data.copy()
+    print(sky)
     y_sky = np.arange(sky[0], sky[1])
     for i in range(2, len(sky), 2):
-        if sky[i] > len(data):
+        if sky[i] > len(data_copy):
             break
-        if sky[i + 1] > len(data):
-            sky[i + 1] = len(data) - 1
+        if sky[i + 1] > len(data_copy):
+            sky[i + 1] = len(data_copy) - 1
         y_sky = np.append(y_sky, np.arange(sky[i], sky[i + 1]))
-    tdata = data[y_sky].T
+    print(y_sky)
+    tdata = data_copy[y_sky].T
     sky_poly = np.array(list(map(lambda x: np.polyfit(y_sky, x, 2), tdata)))
-    real_sky = np.array(list(map(lambda x: np.polyval(x, np.arange(len(data))), sky_poly))).T
-    return data - real_sky, real_sky
+    real_sky = [np.polyval(x, np.arange(len(data_copy))) for x in sky_poly]
+    real_sky = np.array(real_sky).T
+    data_nosky = data - real_sky
+    return data_nosky, real_sky
 
 
 def process_sky(data, sky_y):
     data_copy = data.copy()
     res = []
     res_sky = []
-    for frame in data_copy['data']:
+    for i, frame in enumerate(data_copy['data']):
         r, r_sky = extract_sky(frame, sky_y)
         res.append(r)
         res_sky.append(r_sky)
+        if 'mask' in data_copy:
+            data_copy['mask'][i] = data_copy['mask'][i] | (r < 0)
     data_copy['data'] = res
     data_copy['sky'] = res_sky
     return(data_copy)
@@ -51,36 +60,43 @@ def process_sky(data, sky_y):
 def main(args=None):
     """This method runs if the file is running as a program"""
     parser = argparse.ArgumentParser()
-    parser.add_argument('filenames', nargs='+',
-                        help="files to clear cosmic rays in them")
-    parser.add_argument('-d', '--dir', help="directory with input files")
-    parser.add_argument('-o', '--out', default='../data/',
-                        help='directory to save results')
-    parser.add_argument('-B', '--BIAS', help="bias frame (fits) to subtract")
+    parser.add_argument('filename', help="file to clear sky in it")
+    parser.add_argument('-y', '--ysky', nargs='+',
+                        help='y coordinates (px) to sample sky')
+    parser.add_argument('-o', '--out',
+                        help='result file')
+    parser.add_argument('-s', '--skyfile',
+                        help='filename to save extracted sky')
     pargs = parser.parse_args(args[1:])
-    print(pargs)
 
-    # if pargs.BIAS:
-    #     bias_obj = bias.bias_from_file(pargs.BIAS)
-    # else:
-    #     bias_obj = None
+    if pargs.out:
+        resname = pargs.out
+    else:
+        resname = pargs.filename.split('.')[-2] + '_nosky.fits'
 
-    # # print(args)
-    # frame_names = pargs.filenames
-    # if pargs.dir:
-    #     frame_names = [pargs.dir + x for x in frame_names]
+    if pargs.ysky:
+        sky_y = [int(y) for y in pargs.ysky]
+    else:
+        sky_y = [50, 150, 350, 450]
 
-    # frame_files, headers = open_fits_array_data(frame_names, header=True)
-    # processed_files = get_cosmics_file(frame_files, headers, bias_obj)
-    # for name, hdu in zip(frame_names, processed_files):
-    #     name_to_write = (name.split('/')[-1]).split('.')[0]
-    #     name_to_write = pargs.out + name_to_write + '_nocosmics.fits'
-    #     hdu.writeto(name_to_write, overwrite=True)
-    # superbias_file = get_bias_file(bias_files, headers[0])
-    # superbias_file.writeto(pargs.out, overwrite=True)
+    frame = fits.open(pargs.filename)
+    data = {'data': [frame[0].data]}
+    if 'mask' in frame:
+        data['mask'] = [(frame['mask'].data == 1)]
+    data_copy = process_sky(data, sky_y)
+
+    frame[0].data = data_copy['data']
+    if 'mask' in frame:
+        frame['mask'].data = data_copy['mask'][0].astype(int)
+    frame.writeto(resname, overwrite=True)
+
+    if pargs.skyfile:
+        fits.PrimaryHDU(data_copy['sky']).writeto(pargs.skyfile, overwrite=True)
+
     return 0
 
 
+open_fits_array_data
 if __name__ == '__main__':
     import sys
     # from utils import open_fits_array_data
