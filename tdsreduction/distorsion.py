@@ -39,8 +39,8 @@ def get_distorsion_map(data, verbose=True):
     return peaks
 
 
-def get_distorsion_file(data, bias_obj=None, dark_obj=None, flat_obj=None, cosm_obj=None,
-                        wl_obj=None):
+def get_distorsion_file(data, bias_obj=None, dark_obj=None, flat_obj=None,
+                        cosm_obj=None, wl_obj=None):
     data_copy = {'data': data.copy()}
     data_copy = bias.process_bias(data_copy, bias_obj)
     data_copy = flat.process_flat(data_copy, flat_obj)
@@ -49,12 +49,16 @@ def get_distorsion_file(data, bias_obj=None, dark_obj=None, flat_obj=None, cosm_
     data_copy = dispersion.process_dispersion(data_copy, wl_obj)
 
     dist_calib = np.sum(data_copy['data'], axis=0)
-    corr_map, new_y = corrections.get_correction_map(dist_calib.T,
-                                                     verbose=True, h=3, d=3.5)
+    corr_map, new_y, mean_peaks = corrections.get_correction_map(dist_calib.T,
+                                    verbose=True, h=3, d=3.5, return_peaks=True)
+    print(mean_peaks)
+    middle_peak = mean_peaks[np.argmin(np.abs(mean_peaks - 256))]
     dist_map = corr_map.T
     res = fits.PrimaryHDU(dist_map)
     res.header['GOODY1'] = np.min(new_y)
     res.header['GOODY2'] = np.max(new_y)
+    res.header['CRPIX2'] = middle_peak
+    res.header['CRPIX2A'] = np.min(mean_peaks)
     return res
 
 
@@ -64,8 +68,11 @@ def distorsion_from_file(corrections_file):
 
     y1 = corrections_file.header['GOODY1']
     y2 = corrections_file.header['GOODY2'] + 1
+    ref_y = corrections_file.header['CRPIX2']
+    ref_y2 = corrections_file.header['CRPIX2A']
     good_y = np.arange(y1, y2)
-    res = {'data': corrections_file.data, 'new_y': good_y}
+    res = {'data': corrections_file.data, 'new_y': good_y,
+           'ref_y': [ref_y, ref_y2]}
     return res
 
 
@@ -85,6 +92,11 @@ def process_distorsion(data, corr_obj):
         mask = [(corrections.interpolate_correction_map(x.T, corr_map)).T
                 for x in data_copy['mask']]
         data_copy['mask'] = np.array(mask).astype('bool')
+    if 'keys' in data_copy:
+        data_copy['keys']['CRPIX2'] = corr_obj['ref_y'][0]
+        data_copy['keys']['CRPIX2A'] = corr_obj['ref_y'][1]
+        data_copy['keys']['CRVAL2'] = 0
+        data_copy['keys']['CDELT2'] = 3.7
     return data_copy
 
 
