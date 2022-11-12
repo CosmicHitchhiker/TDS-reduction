@@ -90,13 +90,29 @@ def get_approx(neon_line, refspec, hdr, approx_wl=None):
     ax[1].set_title('Observed')
     plt.ion()
     plt.show()
-    obs_points = input("Observed points (space separated):")
-    obs_points = [float(x) for x in obs_points.split()]
-    ref_points = input("Reference points (space separated):")
-    ref_points = [float(x) for x in ref_points.split()]
+
+    obs_points = []
+    ref_points = []
+
+    def onclick(event):
+        px, py = event.xdata, event.ydata
+        if event.inaxes == ax[0]:
+            ax[0].plot(px, py, '.')
+            ref_points.append(px)
+        if event.inaxes == ax[1]:
+            ax[1].plot(px, py, '.')
+            obs_points.append(px)
+
+    cid = fig.canvas.mpl_connect('button_press_event', onclick)
+    # obs_points = input("Observed points (space separated):")
+    # obs_points = [float(x) for x in obs_points.split()]
+    input("Reference points (space separated):")
+    # ref_points = [float(x) for x in ref_points.split()]
+    plt.show()
+    fig.canvas.mpl_disconnect(cid)
+    plt.ioff()
 
     k = np.polyfit(obs_points, ref_points, 3)
-    plt.ioff()
     return k
 
 

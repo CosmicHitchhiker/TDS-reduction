@@ -284,5 +284,5 @@ def sort_labels(clustering, vectors):
     x_med = []
     enum_lab = set(lab.tolist()) - {-1}
     enum_lab = list(enum_lab)
-    for l in enum_lab:
-        x_med.append(np.median(x[lab == l]))
+    for ll in enum_lab:
+        x_med.append(np.median(x[lab == ll]))

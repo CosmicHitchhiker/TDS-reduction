@@ -20,7 +20,8 @@ def my_average(array, weights=None, axis=None):
     weighted_data = np.sum(data_copy * weights, axis=axis)
     weights_sum = np.sum(weights, axis=axis)
     good_pixels = (weights_sum != 0)
-    weighted_data[good_pixels] = weighted_data[good_pixels] / weights_sum[good_pixels]
+    weighted_data[good_pixels] = weighted_data[good_pixels] \
+                                 / weights_sum[good_pixels]
     data_copy = weighted_data
     return data_copy
 
