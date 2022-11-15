@@ -6,7 +6,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 setuptools.setup(
     name="tdsreduction",
     # PEP440
-    version="0.0.1.dev1",
+    version="0.1.0.dev1",
     author="Vsevolod Lander",
     author_email="sevalander@gmail.com",
     description="Reduce data obtained at Transient Double-beam Spectrograph",
@@ -30,6 +30,11 @@ setuptools.setup(
     install_requires=[
        'numpy>=1.13',
        'scipy>=1.0',
-       'astropy'
+       'astropy',
+       'matplotlib',
+       'argparse',
+       'sklearn',
+       'tqdm',
+       'lacosmic',
     ]
 )
