@@ -6,7 +6,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 setuptools.setup(
     name="tdsreduction",
     # PEP440
-    version="0.1.0.dev1",
+    version="0.1.0.dev2",
     author="Vsevolod Lander",
     author_email="sevalander@gmail.com",
     description="Reduce data obtained at Transient Double-beam Spectrograph",
@@ -26,6 +26,7 @@ setuptools.setup(
     ],
     keywords='astronomy spectroscopy longslit reduction',
     packages=setuptools.find_packages(),
+    scripts = ['bin/tdspipeline'],
     python_requires=">=3.6",
     install_requires=[
        'numpy>=1.13',

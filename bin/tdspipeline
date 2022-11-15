@@ -1,0 +1,9 @@
+#! /usr/bin/python3
+
+from tdsreduction import pipeline
+
+if __name__ == '__main__':
+    import sys
+    from genfuncs import open_fits_array_data
+    import argparse
+    sys.exit(pipeline.main(sys.argv))
