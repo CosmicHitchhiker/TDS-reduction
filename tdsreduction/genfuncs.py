@@ -1,8 +1,9 @@
+"""Some basic functions that don't need separate module"""
 import numpy as np
 from astropy.io import fits
 
 
-def open_fits_array_data(names, margins=[0, None, 0, None], header=False):
+def open_fits_array_data(names, margins=None, header=False):
     '''Give an array of data of named fits files.
 
     Read data from all mentioned files and return an 3D ndarray of images.
@@ -25,6 +26,8 @@ def open_fits_array_data(names, margins=[0, None, 0, None], header=False):
     headers : list of fits.header
         A list of heders of mentioned files (returned when header is True).
     '''
+    if margins is None:
+        margins = [0, None, 0, None]
     xmin, xmax, ymin, ymax = margins
     # Some fits files store image as 2D array and other - as 3D array.
     # So we dermine number of dimentions and if it's equal to 3 only first
@@ -49,5 +52,4 @@ def open_fits_array_data(names, margins=[0, None, 0, None], header=False):
                 headers.append(fits.getheader(name))
     if header is True:
         return fitses, headers
-    else:
-        return fitses
+    return fitses
