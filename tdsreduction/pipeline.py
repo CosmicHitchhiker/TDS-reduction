@@ -89,8 +89,15 @@ def pipeline(frames, headers=None, bias_obj=None, flat_obj=None, dark_obj=None,
     print("COSMICS")
     data_wl_corrected = dispersion.process_dispersion(data_no_cosmics, wl_obj)
     print("DISPERSION")
-    data_dist_corrected = distorsion.process_distorsion(data_wl_corrected,
-                                                        ycorr_obj)
+    if ycorr_obj != 'obj':
+        data_dist_corrected = distorsion.process_distorsion(data_wl_corrected,
+                                                            ycorr_obj)
+    else:
+        dist_file = distorsion.get_distorsion_file(data['data'], bias_obj, dark_obj,
+                                    flat_obj, ch_obj, wl_obj)
+        ycorr_obj = distorsion.distorsion_from_file(dist_file)
+        data_dist_corrected = distorsion.process_distorsion(data_wl_corrected,
+                                                            ycorr_obj)
     print("DISTORSION")
     data_sum = sum_data(data_dist_corrected)
     print("SUM")
@@ -140,7 +147,10 @@ def read_yaml_obj(yaml_name):
     if 'X' in adds:
         xcorr_obj = corrections.corrections_from_file(adds['X'])
     if 'Y' in adds:
-        ycorr_obj = distorsion.distorsion_from_file(adds['Y'])
+        if adds['Y']:
+            ycorr_obj = distorsion.distorsion_from_file(adds['Y'])
+        else:
+            ycorr_obj = 'obj'
     if 'W' in adds:
         wl_obj = dispersion.dispersion_from_file(adds['W'])
     # if 'sky' in config:
@@ -189,7 +199,8 @@ def prepare_configs(yaml_name):
         dispersion.main(process['disp'])
         print("DISPERSION CALIB")
     if 'dist' in process:
-        distorsion.main(process['dist'])
+        if config['dist']['calibration']:
+            distorsion.main(process['dist'])
         print("DISTORSION CALIB")
     return ('object' in config)
 

@@ -112,6 +112,8 @@ def get_approx(neon_line, refspec, hdr, approx_wl=None):
     fig.canvas.mpl_disconnect(cid)
     plt.ioff()
 
+    obs_points = np.sort(obs_points)
+    ref_points = np.sort(ref_points)
     k = np.polyfit(obs_points, ref_points, 3)
     return k
 

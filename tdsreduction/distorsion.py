@@ -78,6 +78,8 @@ def distorsion_from_file(corrections_file):
 
 def process_distorsion(data, corr_obj):
     data_copy = data.copy()
+    if corr_obj is None:
+        return data_copy
     new_y = corr_obj['new_y']
     corr_map = (corr_obj['data'].T)[:, new_y]
     corrected = [(corrections.interpolate_correction_map(x.T, corr_map)).T
