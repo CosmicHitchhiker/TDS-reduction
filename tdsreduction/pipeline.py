@@ -80,15 +80,15 @@ def pipeline(frames, headers=None, bias_obj=None, flat_obj=None, dark_obj=None,
     # data = {'data': frames, 'headers': headers}
     print("Processing...")
     data_no_bias = bias.process_bias(data, bias_obj)
-    print("BIAS")
+    print("BIAS" if bias_obj else '')
     data_no_dark = dark.process_dark(data_no_bias, dark_obj)
-    print("DARK")
+    print("DARK" if dark_obj else '')
     data_no_flat = flat.process_flat(data_no_dark, flat_obj)
-    print("FLAT")
+    print("FLAT" if flat_obj else '')
     data_no_cosmics = cosmics.process_cosmics(data_no_flat, ch_obj, bias_obj)
-    print("COSMICS")
+    print("COSMICS" if ch_obj else '')
     data_wl_corrected = dispersion.process_dispersion(data_no_cosmics, wl_obj)
-    print("DISPERSION")
+    print("DISPERSION" if wl_obj else '')
     if ycorr_obj != 'obj':
         data_dist_corrected = distorsion.process_distorsion(data_wl_corrected,
                                                             ycorr_obj)
@@ -98,7 +98,7 @@ def pipeline(frames, headers=None, bias_obj=None, flat_obj=None, dark_obj=None,
         ycorr_obj = distorsion.distorsion_from_file(dist_file)
         data_dist_corrected = distorsion.process_distorsion(data_wl_corrected,
                                                             ycorr_obj)
-    print("DISTORSION")
+    print("DISTORSION" if ycorr_obj else '')
     data_sum = sum_data(data_dist_corrected)
     print("SUM")
 
