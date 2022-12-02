@@ -52,7 +52,7 @@ def process_cosmics(data, ch_obj=True, bias_obj=None):
         # norm = simple_norm(frame, 'log', percent=95)
         # plt.imshow(frame, origin='lower', norm=norm)
         # plt.show()
-        return lacosmic(frame, 1.7, 7, 3, effective_gain=1, readnoise=readnois,
+        return lacosmic(frame, 1.5, 2, 0.7, effective_gain=1, readnoise=readnois,
                         error=errors, mask=mask, background=bias)
 
     resframes = [prepared_lacosmic(x, y, z) for x, y, z in
