@@ -56,10 +56,12 @@ def process_flat(data, flat_obj):
     data_copy = data.copy()
     if flat_obj is None:
         return data_copy
-
+    flat_mask = (flat_obj['data'] > 5)
     data_copy['data'] = data_copy['data'] * flat_obj['data']
     if 'errors' in data_copy:
         data_copy['errors'] = data_copy['errors'] * flat_obj['data']
+    if 'mask' in data_copy:
+        data_copy['mask'] = data_copy['mask'] | flat_mask
     return data_copy
 
 
