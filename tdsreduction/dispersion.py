@@ -89,7 +89,7 @@ def get_approx(neon_line, refspec, hdr, approx_wl=None):
     ax[1].plot(neon_line)
     ax[1].set_title('Observed')
     plt.ion()
-    plt.show()
+    # plt.show()
 
     obs_points = []
     ref_points = []
@@ -106,9 +106,9 @@ def get_approx(neon_line, refspec, hdr, approx_wl=None):
     cid = fig.canvas.mpl_connect('button_press_event', onclick)
     # obs_points = input("Observed points (space separated):")
     # obs_points = [float(x) for x in obs_points.split()]
-    input("Reference points (space separated):")
+    # input("Reference points (space separated):")
     # ref_points = [float(x) for x in ref_points.split()]
-    plt.show()
+    plt.show(block=True)
     fig.canvas.mpl_disconnect(cid)
     plt.ioff()
 
