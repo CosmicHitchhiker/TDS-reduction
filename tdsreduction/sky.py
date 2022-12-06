@@ -85,7 +85,7 @@ def main(args=None):
         data['mask'] = [(frame['mask'].data == 1)]
     data_copy = process_sky(data, sky_y)
 
-    frame[0].data = data_copy['data']
+    frame[0].data = data_copy['data'][0]
     if 'mask' in frame:
         frame['mask'].data = data_copy['mask'][0].astype(int)
     frame.writeto(resname, overwrite=True)
