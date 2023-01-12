@@ -53,3 +53,26 @@ def open_fits_array_data(names, margins=None, header=False):
     if header is True:
         return fitses, headers
     return fitses
+
+
+def fits_to_data(names):
+    hduls = [fits.open(name) for name in names]
+    frames = [x[0].data for x in hduls]
+    headers = [x[0].header for x in hduls]
+
+    try:
+        errors = [x['errors'].data for x in hduls]
+    except KeyError:
+        print('No errors found')
+
+    try:
+        mask = [x['mask'].data for x in hduls]
+    except KeyError:
+        print('No mask found')
+
+    data = {'data': frames, 'headers': headers,
+            'errors': errors, 'mask': mask}
+    return data
+
+
+
