@@ -57,8 +57,8 @@ def get_distorsion_file(data, bias_obj=None, dark_obj=None, flat_obj=None,
     res = fits.PrimaryHDU(dist_map)
     res.header['GOODY1'] = np.min(new_y)
     res.header['GOODY2'] = np.max(new_y)
-    res.header['CRPIX2'] = middle_peak
-    res.header['CRPIX2A'] = np.min(mean_peaks)
+    res.header['CRPIX2A'] = middle_peak
+    res.header['CRPIX2B'] = np.min(mean_peaks)
     return res
 
 
@@ -68,8 +68,8 @@ def distorsion_from_file(corrections_file):
 
     y1 = corrections_file.header['GOODY1']
     y2 = corrections_file.header['GOODY2'] + 1
-    ref_y = corrections_file.header['CRPIX2']
-    ref_y2 = corrections_file.header['CRPIX2A']
+    ref_y = corrections_file.header['CRPIX2A']
+    ref_y2 = corrections_file.header['CRPIX2B']
     good_y = np.arange(y1, y2)
     res = {'data': corrections_file.data, 'new_y': good_y,
            'ref_y': [ref_y, ref_y2]}
@@ -81,7 +81,10 @@ def process_distorsion(data, corr_obj):
     if corr_obj is None:
         return data_copy
     new_y = corr_obj['new_y']
-    corr_map = (corr_obj['data'].T)[:, new_y]
+    corr_map = corr_obj['data'].T
+    crpix2 = corr_map[int(len(corr_map)/2), int(len(corr_map[0])/2)] - np.min(new_y)
+    corr_map = corr_map[:, new_y]
+
     corrected = [(corrections.interpolate_correction_map(x.T, corr_map)).T
                  for x in data_copy['data']]
     data_copy['data'] = np.array(corrected)
@@ -95,10 +98,11 @@ def process_distorsion(data, corr_obj):
                 for x in data_copy['mask']]
         data_copy['mask'] = np.array(mask).astype('bool')
     if 'keys' in data_copy:
-        data_copy['keys']['CRPIX2'] = corr_obj['ref_y'][0]
-        data_copy['keys']['CRPIX2A'] = corr_obj['ref_y'][1]
+        data_copy['keys']['CRPIX2A'] = corr_obj['ref_y'][0]
+        data_copy['keys']['CRPIX2B'] = corr_obj['ref_y'][1]
+        data_copy['keys']['CRPIX2'] = crpix2
         data_copy['keys']['CRVAL2'] = 0
-        data_copy['keys']['CDELT2'] = 3.7
+        data_copy['keys']['CDELT2'] = 0.37
     return data_copy
 
 
