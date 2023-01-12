@@ -11,6 +11,7 @@ import sky
 import yaml
 import numpy as np
 from astropy.io import fits
+from matplotlib import pyplot as plt
 
 
 def my_average(array, weights=None, axis=None):
@@ -31,16 +32,36 @@ def fits_from_data(data, summ=False):
     if summ:
         data_copy = sum_data(data_copy)
 
+    if len(np.shape(data_copy['data'])) > 2:
+        result = fitses_from_data(data_copy)
+        return result
+
     hdr = prerpare_header(data_copy)
 
     result = [fits.PrimaryHDU(data_copy['data'], header=hdr)]
     if 'errors' in data_copy:
         result.append(fits.ImageHDU(data_copy['errors'], name='errors'))
     if 'mask' in data_copy:
-        result.append(fits.ImageHDU(data_copy['mask'], name='mask'))
+        result.append(fits.ImageHDU(data_copy['mask'].astype(int),
+                                    name='mask'))
 
     result = fits.HDUList(result)
     return result
+
+
+def fitses_from_data(data):
+    data_copy = data.copy()
+    res = []
+    for i in range(len(data['data'])):
+        data_copy['data'] = data['data'][i]
+        if 'errors' in data:
+            data_copy['errors'] = data['errors'][i]
+        if 'mask' in data:
+            data_copy['mask'] = data['mask'][i]
+        if 'headers' in data:
+            data_copy['headers'] = [data['headers'][i]]
+        res.append(fits_from_data(data_copy))
+    return res
 
 
 def sum_data(data):
@@ -73,7 +94,7 @@ def prerpare_header(data):
 
 def pipeline(frames, headers=None, bias_obj=None, flat_obj=None, dark_obj=None,
              ch_obj=None, xcorr_obj=None, ycorr_obj=None, wl_obj=None,
-             sky_obj=None):
+             sky_obj=None, summ_obj=None):
 
     data = {'data': frames, 'headers': headers, 'errors': np.sqrt(frames),
             'mask': np.zeros_like(frames).astype(bool), 'keys': dict()}
@@ -99,19 +120,14 @@ def pipeline(frames, headers=None, bias_obj=None, flat_obj=None, dark_obj=None,
         data_dist_corrected = distorsion.process_distorsion(data_wl_corrected,
                                                             ycorr_obj)
     print("DISTORSION" if ycorr_obj else '')
-    data_sum = sum_data(data_dist_corrected)
-    print("SUM")
-
-    # hdr = prerpare_header(data_sum)
-
-    # result = [fits.PrimaryHDU(data_sum['data'], header=hdr)]
-    # if 'errors' in data_sum:
-    #     result.append(fits.ImageHDU(data_sum['errors'], name='errors'))
-    # if 'mask' in data_sum:
-    #     result.append(fits.ImageHDU(data_sum['mask'], name='mask'))
+    if summ_obj:
+        data_sum = sum_data(data_dist_corrected)
+        print("SUM")
+    else:
+        data_sum = data_dist_corrected.copy()
+    print(np.shape(data_sum['data']))
 
     result = fits_from_data(data_sum)
-
     return result
 
 
@@ -124,7 +140,7 @@ def read_yaml_obj(yaml_name):
         return None
 
     bias_obj = dark_obj = flat_obj = ch_obj = xcorr_obj = ycorr_obj = \
-        wl_obj = sky_obj = file_names = outname = None
+        wl_obj = sky_obj = file_names = summ_obj = outname = None
 
     if 'output' in config['object']:
         outname = config['object']['output']
@@ -144,6 +160,8 @@ def read_yaml_obj(yaml_name):
         flat_obj = flat.flat_from_file(adds['F'])
     if 'C' in adds:
         ch_obj = adds['C']
+    if 'U' in adds:
+        summ_obj = adds['U']
     if 'X' in adds:
         xcorr_obj = corrections.corrections_from_file(adds['X'])
     if 'Y' in adds:
@@ -159,7 +177,7 @@ def read_yaml_obj(yaml_name):
     #         sky_obj['skyflat'] = cal + sky_obj['skyflat']
 
     return(file_names, bias_obj, dark_obj, flat_obj, ch_obj, xcorr_obj,
-           ycorr_obj, wl_obj, sky_obj, outname)
+           ycorr_obj, wl_obj, sky_obj, summ_obj, outname)
 
 
 def prepare_configs(yaml_name):
@@ -205,9 +223,6 @@ def prepare_configs(yaml_name):
     return ('object' in config)
 
 
-
-
-
 def main(args=None):
     parser = argparse.ArgumentParser()
     default_out = '../data/result.fits'
@@ -238,19 +253,23 @@ def main(args=None):
     parser.add_argument('-S', '--SKY', nargs='*',
                         help="""[file] Y1 Y2 [Y3 Y4] - file with skyflat
                         (optional) and regions to subtract sky""")
+    parser.add_argument('-U', '--SUMM', action='store_true',
+                        help='summarize result frames')
 
     pargs = parser.parse_args(args[1:])
 
     bias_obj = dark_obj = flat_obj = ch_obj = xcorr_obj = ycorr_obj = \
-        wl_obj = sky_obj = outname = None
+        wl_obj = sky_obj = summ_obj = outname = None
 
     first_arg = pargs.filenames[0]
+    # Проверка не YAML ли
     farg_ext = first_arg.split('.')[-1]
     if farg_ext == 'yaml' or farg_ext == 'yml':
         if_obj = prepare_configs(first_arg)
         if if_obj:
             file_names, bias_obj, dark_obj, flat_obj, ch_obj, xcorr_obj, \
-                ycorr_obj, wl_obj, sky_obj, outname = read_yaml_obj(first_arg)
+                ycorr_obj, wl_obj, sky_obj, summ_obj, outname \
+                = read_yaml_obj(first_arg)
         else:
             return(0)
     else:
@@ -286,13 +305,22 @@ def main(args=None):
             skyfile = sky.sky_from_file(pargs.SKY[0])
             skyborders = [int(x) for x in pargs.SKY[1:]]
             sky_obj = {'skyflat': skyfile, 'borders': skyborders}
+    if pargs.SUMM:
+        summ_obj = True
 
     data, headers = open_fits_array_data(file_names, header=True)
 
     result = pipeline(data, headers, bias_obj, flat_obj, dark_obj, ch_obj,
-                      xcorr_obj, ycorr_obj, wl_obj, sky_obj)
-    print('writeto ', outname)
-    result.writeto(outname, overwrite=True)
+                      xcorr_obj, ycorr_obj, wl_obj, sky_obj, summ_obj)
+    
+    if isinstance(result, list):
+        for i, hdul in enumerate(result):
+            outname_i = ''.join(outname.split('.')[:-1]) + f'_{i}.fits'
+            print('writeto ', outname_i)
+            hdul.writeto(outname_i, overwrite=True)
+    else:
+        print('writeto ', outname)
+        result.writeto(outname, overwrite=True)
     return(0)
 
 
