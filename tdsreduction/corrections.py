@@ -131,12 +131,12 @@ def get_correction_map(neon, verbose=False, ref='mean', use_clust=True, h=10,
     else:
         corr = np.polyval(k[0], y)
         yg, xg = np.mgrid[:len(neon), :len(neon[0])]
-        print(xg)
+        # print(xg)
         xg = xg - mean_peaks[0]
-        print(xg)
+        # print(xg)
         corr_map = (xg.T + corr).T
-        print(corr)
-        print(corr_map)
+        # print(corr)
+        # print(corr_map)
 
     plt.imshow(corr_map)
     plt.show()
