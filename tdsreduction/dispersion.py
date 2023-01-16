@@ -286,27 +286,32 @@ def get_dispersion_file(data, ref, approx_wl=None, bias_obj=None, dark_obj=None,
     neon_data = {'data': np.array([neon[:, ::-1]])}
     # neon_data = data_copy
     neon_corrected = process_dispersion(neon_data, disp_obj)
+    nc_data = neon_corrected['data'][0]
 
     plt.figure()
     plt.imshow(neon_data['data'][0])
     plt.title('Neon')
     plt.figure()
-    plt.imshow(neon_corrected['data'][0])
+    plt.imshow(nc_data)
     plt.title('neon_corrected')
     plt.show()
 
     if hdr is not None:
-        neon_res = fits.ImageHDU(neon_corrected['data'][0], header=hdr,
+        neon_res = fits.ImageHDU(nc_data, header=hdr,
                                  name='neon')
     else:
-        neon_res = fits.ImageHDU(neon_corrected['data'][0], name='neon')
+        neon_res = fits.ImageHDU(nc_data, name='neon')
     neon_res.header['CRPIX1'] = 1
     crval = round(neon_corrected['wl'][0], 3)
     crdelt = round((neon_corrected['wl'][1] - neon_corrected['wl'][0]), 3)
+    fwhm = gm.calc_fwhm(nc_data[int(len(nc_data) / 2)])*crdelt
+    fwhm = round(fwhm, 3)
+    print(f'FWHM = {fwhm} A')
     neon_res.header['CRVAL1'] = crval
     neon_res.header['CDELT1'] = crdelt
     neon_res.header['CTYPE1'] = 'WAVE'
     neon_res.header['CRDER1'] = np.mean(err_fit)
+    neon_res.header['FWHM'] = fwhm
 
     hdul = fits.HDUList([res, neon_res])
 
@@ -319,6 +324,11 @@ def dispersion_from_file(disp_file):
     res = {'data': disp_file[0].data}
     if 'neon' in disp_file:
         res['CRDER1'] = disp_file['neon'].header['CRDER1']
+        if 'FWHM' in disp_file['neon'].header:
+            res['FWHM'] = disp_file['neon'].header['FWHM']
+        else:
+            # Support of old versions
+            ref['FWHM'] = 3.0
     return res
 
 
@@ -356,6 +366,8 @@ def process_dispersion(data, disp_obj):
         data_copy['keys']['CTYPE1'] = 'WAVE'
         if 'CRDER1' in disp_obj:
             data_copy['keys']['CRDER1'] = disp_obj['CRDER1']
+        if 'FWHM' in disp_obj:
+            data_copy['keys']['FWHM'] = disp_obj['FWHM']
     return data_copy
 
 
