@@ -313,7 +313,7 @@ def main(args=None):
     result = pipeline(data, headers, bias_obj, flat_obj, dark_obj, ch_obj,
                       xcorr_obj, ycorr_obj, wl_obj, sky_obj, summ_obj)
     
-    if isinstance(result, list):
+    if isinstance(result[0], list):
         for i, hdul in enumerate(result):
             outname_i = ''.join(outname.split('.')[:-1]) + f'_{i}.fits'
             print('writeto ', outname_i)
