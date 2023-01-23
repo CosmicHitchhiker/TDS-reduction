@@ -180,6 +180,7 @@ def get_dispersion_file(data, ref, approx_wl=None, bias_obj=None, dark_obj=None,
     neon = np.sum(neon_data, axis=0)
 
     peaks, n_lines, fwhm_pix = get_peaks_clust_setup(neon)
+    fwhm_pix = 3.0
     pint = peaks.astype(int)
     hs = neon[pint[:, 1], pint[:, 0]]
 
@@ -202,7 +203,7 @@ def get_dispersion_file(data, ref, approx_wl=None, bias_obj=None, dark_obj=None,
 
     refspec = gm.gauss_spectra(fwhm_pix, ref[0], ref[1], bias=0,
                                step=1, rng=None)
-    theor, theor_n, theor_h = gm.get_peaks_h(ref[0], ref[1], return_h=True)
+    theor, theor_n, theor_h = gm.get_peaks_h(ref[0], ref[1], return_h=True, h=2)
 
     k = get_approx(neon[255], refspec, hdr, approx_wl)
 
