@@ -8,10 +8,42 @@ from astropy.io import fits
 import scipy.interpolate as interp
 import argparse
 from genfuncs import open_fits_array_data
+from matplotlib import pyplot as plt
+
+
+def get_spline_setup(flat_string, x=None, band='R'):
+
+    if x is None:
+        x = np.arange(len(flat_string))
+
+    if band == 'R':
+        prec = 5.
+    elif band == 'B':
+        prec = 1.5
+    else:
+        prec = 3.
+
+    need_to_change = 'Yes'
+    while need_to_change != '':
+        spl = interp.UnivariateSpline(x, flat_string, s=prec*1e+8)
+        plt.plot(x, flat_string)
+        plt.plot(x, spl(x))
+        plt.show()
+
+        params = argparse.ArgumentParser(exit_on_error=False)
+        params.add_argument('-p', type=float, default=prec)
+        parags = params.parse_args('')
+        print(parags)
+        need_to_change = input("Change any parameters?(leave blank if No)")
+        if need_to_change:
+            parags = params.parse_args(need_to_change.split())
+            prec = parags.p
+    return spl(x)
 
 
 def get_flat_file(flat_frames, flat_headers,
                   bias_obj=None, dark_obj=None, corr_obj=None):
+    verbose = True
     # Половина количества линий из середины для усреднения
     dy = 10
 
@@ -25,15 +57,20 @@ def get_flat_file(flat_frames, flat_headers,
     mean = int(len(flat) / 2.)
     flat_string = np.mean(flat[mean - dy:mean + dy], axis=0)
 
-    if flat_headers[0]['DISP'] == 'R':
-        spl = interp.UnivariateSpline(x, flat_string, s=5e+8)
-    elif flat_headers[0]['DISP'] == 'B':
-        spl = interp.UnivariateSpline(x, flat_string, s=1.5e+8)
-    else:
-        raise ValueError
+    # if flat_headers[0]['DISP'] == 'R':
+    #     spl = interp.UnivariateSpline(x, flat_string, s=5e+8)
+    # elif flat_headers[0]['DISP'] == 'B':
+    #     spl = interp.UnivariateSpline(x, flat_string, s=1.5e+8)
+    # else:
+    #     raise ValueError
 
-    flat_string = spl(x)
-    theor_flat = np.ones(len(flat))[:, np.newaxis] @ flat_string[np.newaxis]
+    flat_string_s = get_spline_setup(flat_string, x, flat_headers[0]['DISP'])
+    # if verbose:
+    #     plt.figure()
+    #     plt.plot(x, flat_string)
+    #     plt.plot(x, flat_string_s)
+    #     plt.show()
+    theor_flat = np.ones(len(flat))[:, np.newaxis] @ flat_string_s[np.newaxis]
 
     theor_flat = corrections.interpolate_correction_map(theor_flat,
                                                         corr_obj['data'],
