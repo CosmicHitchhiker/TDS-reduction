@@ -90,7 +90,7 @@ def find_lines_cluster(peaks, y=None, verbose=False, k=50, eps=70, clust=10):
         line_y = vectors[:, 1][y_pred == n_line]
         dy = line_y.max() - line_y.min()
         if (dy < (y.max() - y.min()) / 2):
-            y_pred[y_pred==n_line] = -1
+            y_pred[y_pred == n_line] = -1
 
     if verbose:
         plt.figure()
@@ -106,8 +106,6 @@ def find_lines_cluster(peaks, y=None, verbose=False, k=50, eps=70, clust=10):
         plt.show()
 
     mask = (y_pred >= 0)  # убираем не классифицированные точки
-
-    
 
     return(vectors[mask], y_pred[mask])
 
