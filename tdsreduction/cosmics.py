@@ -1,5 +1,5 @@
 #! /usr/bin/python3
-"This module contains functions to detect cosmic rays"
+"""This module contains functions to detect cosmic rays"""
 
 from lacosmic import lacosmic
 import numpy as np
@@ -16,10 +16,13 @@ def process_cosmics(data, ch_obj=True, bias_obj=None):
     ----------
     data : dict
         'data' - 3D ndarray, array of data images
-
+        'errors' - optional, 3D ndarray, array of errors
+            corresponding to 'data'
+        'mask' - optional, 3D ndarray, array of masks
+            (masked pixels contain True values)
     Returns
     -------
-    data_copoy : dict
+    data_copy : dict
         Has the same structure as input data
     """
     data_copy = data.copy()
@@ -109,6 +112,8 @@ def main(args=None):
     if pargs.BIAS:
         bias_obj = bias.bias_from_file(pargs.BIAS)
     else:
+        print('Please, specify bias file with -B argument.')
+        return 0
         bias_obj = None
 
     # print(args)
