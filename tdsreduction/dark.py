@@ -34,7 +34,7 @@ def get_dark_interp(darks):
 
 
 def get_dark_file(data, headers, bias_obj=None):
-    """Prepare dark file with separate hdu for each expopsition.
+    """Prepare dark file with separate hdu for each exposition.
 
     Apply sigma-clipping to all given dark images (each exp separately).
     Summarize dark frames for each exposition.
@@ -45,7 +45,7 @@ def get_dark_file(data, headers, bias_obj=None):
     data : 3D ndarray
         Array of dark frames.
     headers : list of astropy header
-        Headers corresponding to data.
+        Headers should correspond to data (have the same index).
         Headers are used for reading expositions.
 
     Returns

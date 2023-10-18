@@ -181,6 +181,16 @@ def read_yaml_obj(yaml_name):
 
 
 def prepare_configs(yaml_name):
+    """Process calibrations (from raw fitses) mentioned in YAML file
+
+    Parameters
+    ----------
+    yaml_name : str
+        Path of the YAML file with pipeline configuration
+
+    Returns
+    -------
+    """
     file = open(yaml_name, 'r')
     config = yaml.load(file, Loader=yaml.SafeLoader)
     file.close()
@@ -188,6 +198,8 @@ def prepare_configs(yaml_name):
     seq_calibs = ['bias', 'dark', 'corr', 'flat', 'disp', 'dist']
     process = dict()
 
+    # for evry calibration check if it is mentioned in YAML, add list of bash
+    # arguments to the 'process' dict if calib needs to be processed
     for calib in seq_calibs:
         if calib in config:
             if 'rawfiles' in config[calib]:
@@ -195,10 +207,15 @@ def prepare_configs(yaml_name):
                 argstring.extend(config[calib]['rawfiles'])
                 for k in config[calib]['additional'].keys():
                     argstring.append('-' + k)
+                    # Cleaning cosmic hints is bool argument, for other
+                    # calibrations add filenames of calibrations
                     if k != 'C':
                         argstring.append(config[calib]['additional'][k])
+                # filename for the result of processing this calibration
                 argstring.append('-' + 'o')
                 argstring.append(config[calib]['calibration'])
+                # add string with all arguments to dictionary
+                # key is the name of calibration
                 process[calib] = argstring
 
     if 'bias' in process:
@@ -258,13 +275,15 @@ def main(args=None):
 
     pargs = parser.parse_args(args[1:])
 
+    # Set all calibration objects to None in case of their lack
     bias_obj = dark_obj = flat_obj = ch_obj = xcorr_obj = ycorr_obj = \
         wl_obj = sky_obj = summ_obj = outname = None
 
     first_arg = pargs.filenames[0]
-    # Проверка не YAML ли
+    # Check if the first argument is YAML file
     farg_ext = first_arg.split('.')[-1]
     if farg_ext == 'yaml' or farg_ext == 'yml':
+        # Process calibrations mentioned in YAML file
         if_obj = prepare_configs(first_arg)
         if if_obj:
             file_names, bias_obj, dark_obj, flat_obj, ch_obj, xcorr_obj, \
