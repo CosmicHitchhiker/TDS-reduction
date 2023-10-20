@@ -81,7 +81,8 @@ def find_lines_cluster(peaks, y=None, verbose=False, k=50, eps=70, clust=10):
     vectors = np.array([peaks_f, y_matrix]).T
 
     clustering = DBSCAN(eps=eps, min_samples=clust).fit(vectors)
-    y_pred = clustering.labels_.astype('int')
+    # y_pred = clustering.labels_.astype('int')
+    y_pred = sort_labels(clustering, vectors)
 
     vectors[:, 0] /= k
 
@@ -278,9 +279,16 @@ def polyfit2d(x, y, f, deg=[2, 2]):
 
 def sort_labels(clustering, vectors):
     lab = clustering.labels_.astype('int')
+    print(type(lab))
     x = vectors[:, 0]
     x_med = []
     enum_lab = set(lab.tolist()) - {-1}
     enum_lab = list(enum_lab)
     for ll in enum_lab:
         x_med.append(np.median(x[lab == ll]))
+    ind_sort = np.argsort(x_med)
+    new_enum_lab = np.array(enum_lab)[ind_sort].tolist()
+    new_lab = np.array([-1]*len(lab))
+    for i, ll in enumerate(new_enum_lab):
+        new_lab[lab==ll] = i
+    return new_lab

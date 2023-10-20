@@ -207,6 +207,7 @@ def process_corrections(data, corr_obj):
 
 
 def main(args=None):
+    """This method runs if the file is running as a program"""
     parser = argparse.ArgumentParser()
     parser.add_argument('filenames', nargs='+',
                         help="fits files with neon frames")
