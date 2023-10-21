@@ -9,6 +9,7 @@ import cosmics
 from astropy.io import fits
 import argparse
 from genfuncs import open_fits_array_data
+from astropy.visualization import simple_norm
 
 
 def get_peaks_clust(neon, h=10, d=5, k=50, eps=70, clust=10):
@@ -112,7 +113,8 @@ def get_correction_map(neon, verbose=False, ref='mean', use_clust=True, h=10,
     k = np.zeros((len(enum_lines), deg + 1))
     plt.figure(18)
     plt.clf()
-    plt.imshow(neon)
+    im_norm = simple_norm(neon, 'linear', percent=90)
+    plt.imshow(neon, norm=im_norm, cmap='gray')
     for i, n in enumerate(enum_lines):
         line = peaks[n_lines == n].T
         plt.plot(line[0], line[1], '.')
@@ -138,8 +140,8 @@ def get_correction_map(neon, verbose=False, ref='mean', use_clust=True, h=10,
         # print(corr)
         # print(corr_map)
 
-    plt.imshow(corr_map)
-    plt.show()
+    # plt.imshow(corr_map)
+    # plt.show()
     good_columns = (np.min(corr_map, axis=0) > 0)
     # Умножение для bool - это and!
     good_columns *= (np.max(corr_map, axis=0) < x[-1])
@@ -246,7 +248,8 @@ def main(args=None):
     corr_obj = corrections_from_file(corr_file)
     data = {'data': arc_files}
     res = process_corrections(data, corr_obj)
-    plt.imshow(res['data'][0])
+    im_norm = simple_norm(res['data'][0], 'linear', percent=90)
+    plt.imshow(res['data'][0], norm=im_norm, cmap='gray')
     plt.show()
     corr_file.writeto(pargs.out, overwrite=True)
     return(0)
