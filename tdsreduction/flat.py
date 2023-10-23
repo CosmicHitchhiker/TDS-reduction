@@ -26,8 +26,9 @@ def get_spline_setup(flat_string, x=None, band='R'):
     need_to_change = 'Yes'
     while need_to_change != '':
         spl = interp.UnivariateSpline(x, flat_string, s=prec*1e+8)
-        plt.plot(x, flat_string)
-        plt.plot(x, spl(x))
+        plt.plot(x, flat_string, label='observed spectrum')
+        plt.plot(x, spl(x), label='spline')
+        plt.legend()
         plt.show()
 
         params = argparse.ArgumentParser(exit_on_error=False)
