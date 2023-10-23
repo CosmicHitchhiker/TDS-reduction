@@ -82,7 +82,7 @@ def get_peaks_clust_setup(neon):
     return peaks, n_lines, fwhm
 
 
-def get_approx(neon_line, refspec, hdr, approx_wl=None):
+def get_approx(neon_line, refspec, hdr):
     fig, ax = plt.subplots(2, 1)
     ax[0].plot(refspec[1], refspec[0])
     ax[0].set_title('Reference')
@@ -144,8 +144,8 @@ def plot_cross_identification(refspec, neon_data, theor_n, m_line, theor_mask,
                               obs_mask, approx_line):
     fig, ax = plt.subplots(2, 1)
 
-    print(m_line)
-    print(refspec[1][theor_n])
+    # print(m_line)
+    # print(refspec[1][theor_n])
 
     m_line_n = m_line.astype(int)
     ax[0].plot(refspec[1], refspec[0])
@@ -191,12 +191,15 @@ def get_dispersion_file(data, ref, approx_wl=None, bias_obj=None, dark_obj=None,
 
     for n in n_ordered:
         # ПОДУМАТЬ МОЖНО ЛИ МЕДИАНУ
+        # median pixel coordinate of every line
         m_line.append(np.median(peaks[n_lines == n][:, 0]))
+        # median height (flux) of every line
         h_line.append(np.median(hs[n_lines == n]))
 
     m_line = np.array(m_line)
     h_line = np.array(h_line)
 
+    # sort line according to their coorsinates
     n_ordered = n_ordered[np.argsort(m_line)]
     h_line = h_line[np.argsort(m_line)]
     m_line = np.sort(m_line)
@@ -205,7 +208,7 @@ def get_dispersion_file(data, ref, approx_wl=None, bias_obj=None, dark_obj=None,
                                step=1, rng=None)
     theor, theor_n, theor_h = gm.get_peaks_h(ref[0], ref[1], return_h=True, h=2)
 
-    k = get_approx(neon[255], refspec, hdr, approx_wl)
+    k = get_approx(neon[255], refspec, hdr)
 
     approx_line = np.polyval(k, m_line)
     obs_mask, theor_mask = gm.find_correspond_peaks(approx_line,
@@ -262,7 +265,8 @@ def get_dispersion_file(data, ref, approx_wl=None, bias_obj=None, dark_obj=None,
     fig.show()
     print()
     # print(err_fit)
-    print(np.mean(err_fit))
+    print('Sigma:')
+    print(np.mean(err_fit), 'Angstrom')
     print(np.mean(err_fit) * 3e+5 / 5500., 'km/s')
 
     plt.figure()
@@ -312,7 +316,7 @@ def get_dispersion_file(data, ref, approx_wl=None, bias_obj=None, dark_obj=None,
     neon_res.header['CDELT1'] = crdelt
     neon_res.header['CTYPE1'] = 'WAVE'
     neon_res.header['CRDER1'] = np.mean(err_fit)
-    neon_res.header['FWHM'] = fwhm
+    neon_res.header['FWHM'] = (fwhm, 'Angstrom')
 
     hdul = fits.HDUList([res, neon_res])
 
@@ -328,7 +332,7 @@ def dispersion_from_file(disp_file):
         if 'FWHM' in disp_file['neon'].header:
             res['FWHM'] = disp_file['neon'].header['FWHM']
         else:
-            # Support of old versions
+            # Support for old versions
             ref['FWHM'] = 3.0
     return res
 
@@ -341,7 +345,7 @@ def process_dispersion(data, disp_obj):
     wl1 = wlmap[:, 0].max()
     wl2 = wlmap[:, -1].min()
     wl = np.linspace(wl1, wl2, len(wlmap[0]))
-    print(wl)
+    # print(wl)
 
     if wl2 > 7000:
         data_copy['data'] = data_copy['data'][:, :, ::-1]
@@ -375,7 +379,7 @@ def process_dispersion(data, disp_obj):
 def main(args=None):
     parser = argparse.ArgumentParser()
     parser.add_argument('filenames', nargs='+',
-                        help="""fits files with neon frames and one .dat file
+                        help="""fits files with neon frames and one .txt file
                         with reference spectrum""")
     parser.add_argument('-d', '--dir', help="directory with input files")
     parser.add_argument('-o', '--out', default='../data/disp_map.fits',
@@ -421,15 +425,12 @@ def main(args=None):
     approx_name = None
     for name in file_names:
         ending = name.split('.')[-1]
-        if ending == "fit":
-            approx_name = name
-        elif ending == "txt":
+        if ending == "txt":
             ref_name = name
         elif ending == "fits":
             arc_names.append(name)
 
     print()
-    print("Approx ", approx_name)
     print("Ref ", ref_name)
     print("Arc ", arc_names)
 
