@@ -25,7 +25,6 @@ def extract_sky(data, sky):
         Image of object with sky spectrum substracted
     '''
     data_copy = data.copy()
-    print(sky)
     y_sky = np.arange(sky[0], sky[1])
     for i in range(2, len(sky), 2):
         if sky[i] > len(data_copy):
@@ -33,7 +32,6 @@ def extract_sky(data, sky):
         if sky[i + 1] > len(data_copy):
             sky[i + 1] = len(data_copy) - 1
         y_sky = np.append(y_sky, np.arange(sky[i], sky[i + 1]))
-    print(y_sky)
     tdata = data_copy[y_sky].T
     sky_poly = np.array(list(map(lambda x: np.polyfit(y_sky, x, 2), tdata)))
     real_sky = [np.polyval(x, np.arange(len(data_copy))) for x in sky_poly]
@@ -91,7 +89,13 @@ def main(args=None):
     frame.writeto(resname, overwrite=True)
 
     if pargs.skyfile:
-        fits.PrimaryHDU(data_copy['sky']).writeto(pargs.skyfile, overwrite=True)
+        skyframe = fits.PrimaryHDU(data_copy['sky'])
+        keys_to_copy = ['CRPIX1', 'CRVAL1', 'CDELT1', 'CTYPE1', 'CRDER1',
+                        'FWHM', 'CRPIX2A', 'CRPIX2B', 'CRPIX2', 'CRVAL2',
+                        'CDELT2']
+        for key in keys_to_copy:
+            skyframe.header[key] = frame[0].header[key]
+        skyframe.writeto(pargs.skyfile, overwrite=True)
 
     return 0
 
