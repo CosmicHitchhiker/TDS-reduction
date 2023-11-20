@@ -3,6 +3,9 @@
 import numpy as np
 from genfuncs import open_fits_array_data
 from astropy.io import fits
+from astropy.visualization import simple_norm
+from matplotlib import pyplot as plt
+from matplotlib.backend_bases import MouseButton
 
 
 def extract_sky(data, sky):
@@ -55,6 +58,45 @@ def process_sky(data, sky_y):
     return(data_copy)
 
 
+def get_sky_borders(frame):
+
+    fig, ax = plt.subplots(1, 1)
+    norm_im = simple_norm(frame, 'linear', percent=95)
+    ax.imshow(frame, cmap='gray', norm=norm_im, origin='lower')
+    plt.ion()
+    result = []
+    lines = []
+
+    def onclick(event):
+        if event.button is MouseButton.LEFT:
+            py = int(event.ydata)
+            lines.append(ax.axhline(y=py, color='b', linestyle='-'))
+            result.append(py)
+        if (event.button is MouseButton.RIGHT) and len(result) > 0:
+            py = event.ydata
+            npdiff = np.abs(np.array(result) - py)
+            if np.min(npdiff) < 15:
+                ind = np.argmin(npdiff)
+                result.pop(ind)
+                try:
+                    ax.lines[ind].remove()
+                except IndexError:
+                    pass
+                lines.pop(ind)
+
+    cid = fig.canvas.mpl_connect('button_press_event', onclick)
+    plt.show(block=True)
+    fig.canvas.mpl_disconnect(cid)
+    plt.ioff()
+
+    result = np.sort(result).tolist()
+    if len(result) % 2 != 0:
+        raise ValueError("Number of sky borders should be even!")
+    print("Sky borders: ", result)
+    return result
+
+
+
 def main(args=None):
     """This method runs if the file is running as a program"""
     parser = argparse.ArgumentParser()
@@ -72,12 +114,15 @@ def main(args=None):
     else:
         resname = pargs.filename.split('.')[-2] + '_nosky.fits'
 
+    
+
+    frame = fits.open(pargs.filename)
+
     if pargs.ysky:
         sky_y = [int(y) for y in pargs.ysky]
     else:
-        sky_y = [50, 150, 350, 450]
+        sky_y = get_sky_borders(frame[0].data)
 
-    frame = fits.open(pargs.filename)
     data = {'data': [frame[0].data]}
     if 'mask' in frame:
         data['mask'] = [(frame['mask'].data == 1)]
